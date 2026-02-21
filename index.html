@@ -6,21 +6,21 @@
   <title>Кроссворд (EN)</title>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; }
-    .wrap { max-width: 980px; margin: 0 auto; }
+    .wrap { max-width: 1100px; margin: 0 auto; }
     .top { display: grid; gap: 12px; grid-template-columns: 1fr; }
     .card { border: 1px solid #e5e5e5; border-radius: 16px; padding: 14px; }
     .grid { display: inline-block; border: 1px solid #ddd; border-radius: 12px; padding: 10px; overflow: auto; }
     table { border-collapse: collapse; }
-    td { width: 34px; height: 34px; border: 1px solid #ddd; text-align: center; vertical-align: middle; }
+    td { width: 32px; height: 32px; border: 1px solid #ddd; text-align: center; vertical-align: middle; }
     td.block { background: #222; border-color: #222; }
-    td.gap  { background: #cfcfcf; border-color: #c0c0c0; } /* серые “пробелы” */
+    td.gap  { background: #cfcfcf; border-color: #c0c0c0; }
 
     input.cell {
       width: 100%; height: 100%;
       border: 0; outline: none;
       text-transform: uppercase;
       text-align: center;
-      font-size: 16px;
+      font-size: 15px;
       background: transparent;
     }
 
@@ -37,8 +37,8 @@
     .msg { font-size: 14px; color: #111; }
     .note { font-size: 13px; color: #555; }
 
-    @media (min-width: 860px) {
-      .top { grid-template-columns: 1.1fr 0.9fr; align-items: start; }
+    @media (min-width: 960px) {
+      .top { grid-template-columns: 1.15fr 0.85fr; align-items: start; }
       .clues { grid-template-columns: 1fr 1fr; }
     }
   </style>
@@ -47,7 +47,7 @@
   <div class="wrap">
     <div class="card">
       <h2 style="margin:0 0 6px;">Кроссворд (EN)</h2>
-      <div class="note">Подсказка: вводите по одной букве. Серые клетки — это пробелы между словами.</div>
+      <div class="note">Серые клетки — это пробелы между словами. Вводите по одной букве.</div>
     </div>
 
     <div class="top" style="margin-top:12px;">
@@ -77,194 +77,145 @@
   </div>
 
 <script>
-  // ====== ДАННЫЕ КРОССВОРДА ======
-  const crossword = {
-    size: 30,
+const crossword = {
+  width: 23,
+  height: 15,
 
-    // Серые “пробелы” между словами в финальной фразе (колонка 15)
-    // MESSAGES (8) -> gap -> FROM (4) -> gap -> THE (3) -> gap -> STARS (5)
-    gaps: [
-      { row: 16, col: 15 }, // после MESSAGES
-      { row: 21, col: 15 }, // после FROM
-      { row: 25, col: 15 }, // после THE
-    ],
+  // серые пробелы в финальной строке (row 14)
+  gaps: [
+    { row: 14, col: 9 },  // после MESSAGES
+    { row: 14, col: 14 }, // после FROM
+    { row: 14, col: 18 }, // после THE
+  ],
 
-    entries: [
-      // Финальная фраза внизу, разбита на части, одинаковая подсказка + (2)(3)(4)
-      { id: 1201, label: "12",     dir: "down", row: 8,  col: 15, answer: "MESSAGES", clue: "Название песни, под которую красиво катаются на роликах" },
-      { id: 1202, label: "12 (2)", dir: "down", row: 17, col: 15, answer: "FROM",     clue: "Название песни, под которую красиво катаются на роликах" },
-      { id: 1203, label: "12 (3)", dir: "down", row: 22, col: 15, answer: "THE",      clue: "Название песни, под которую красиво катаются на роликах" },
-      { id: 1204, label: "12 (4)", dir: "down", row: 26, col: 15, answer: "STARS",    clue: "Название песни, под которую красиво катаются на роликах" },
+  entries: [
+    // Финальная фраза внизу — разбито на 4 слова, одинаковая подсказка + (2)(3)(4)
+    { id: 1201, label: "12",     dir: "across", row: 14, col: 1,  answer: "MESSAGES", clue: "Название песни, под которую красиво катаются на роликах" },
+    { id: 1202, label: "12 (2)", dir: "across", row: 14, col: 10, answer: "FROM",     clue: "Название песни, под которую красиво катаются на роликах" },
+    { id: 1203, label: "12 (3)", dir: "across", row: 14, col: 15, answer: "THE",      clue: "Название песни, под которую красиво катаются на роликах" },
+    { id: 1204, label: "12 (4)", dir: "across", row: 14, col: 19, answer: "STARS",    clue: "Название песни, под которую красиво катаются на роликах" },
 
-      // Остальные слова — просто чтобы они были в кроссворде (можно потом пересечь красиво)
-      { id: 1, dir: "across", row: 3,  col: 2,  answer: "MAYFLOWER", clue: "Полное имя Рубика" },
-      { id: 2, dir: "across", row: 5,  col: 2,  answer: "MADMEN",    clue: "Новый офисик" },
-      { id: 3, dir: "across", row: 7,  col: 2,  answer: "VIBURNUM",  clue: "Другое название калины (англ.)" },
-      { id: 4, dir: "across", row: 9,  col: 2,  answer: "PLAY",      clue: "Кнопка на пульте для включения кино" },
-      { id: 5, dir: "across", row: 11, col: 2,  answer: "VPN",       clue: "Платное изобретение Яши и бесплатное Песочка" },
-      { id: 6, dir: "across", row: 13, col: 2,  answer: "SPF",       clue: "То, что Эльза не захотела покупать Владу" },
-    ]
-  };
+    // Остальные слова (пересечения с финальной строкой — через буквы S/E/T/A/R)
+    { id: 1, dir: "down", row: 10, col: 1,  answer: "SPF",      clue: "То, что Эльза не захотела покупать Владу" }, // S в STARS (col19 тоже S, но тут отдельное)
+    { id: 2, dir: "down", row: 6,  col: 5,  answer: "VPN",      clue: "Платное изобретение Яши и бесплатное Песочка" },
+    { id: 3, dir: "down", row: 6,  col: 7,  answer: "PLAY",     clue: "Кнопка на пульте для включения кино" },
+    { id: 4, dir: "down", row: 3,  col: 6,  answer: "MADMEN",   clue: "Новый офисик" },
+    { id: 5, dir: "down", row: 1,  col: 3,  answer: "MAYFLOWER",clue: "Полное имя Рубика" },
+    { id: 6, dir: "down", row: 2,  col: 8,  answer: "VIBURNUM", clue: "Другое название калины (англ.)" },
+  ]
+};
 
-  // ====== ДВИЖОК (почти как у тебя, но с поддержкой серых клеток) ======
-  const N = crossword.size;
+const W = crossword.width;
+const H = crossword.height;
 
-  function normalize(s) {
-    return (s || "").toString().trim().toUpperCase();
+function normalize(s){ return (s||"").toString().trim().toUpperCase(); }
+
+const gapSet = new Set((crossword.gaps||[]).map(g=>`${g.row-1},${g.col-1}`));
+
+// маска: true значит клетка существует (не чёрная)
+const mask = Array.from({length: H}, ()=> Array.from({length: W}, ()=> false));
+
+function assertInBounds(r,c,label){
+  if(r<0||r>=H||c<0||c>=W) throw new Error(`${label} выходит за границы ${W}x${H}`);
+}
+
+// gaps делаем “не чёрными”
+for(const key of gapSet){
+  const [r,c]=key.split(",").map(Number);
+  assertInBounds(r,c,"gap");
+  mask[r][c]=true;
+}
+
+function placeWord(e){
+  const w = normalize(e.answer);
+  for(let i=0;i<w.length;i++){
+    const r = (e.row-1) + (e.dir==="down"? i : 0);
+    const c = (e.col-1) + (e.dir==="across"? i : 0);
+    assertInBounds(r,c,`Слово "${e.answer}"`);
+    if(gapSet.has(`${r},${c}`)) throw new Error(`Слово "${e.answer}" попало в серую клетку`);
+    mask[r][c]=true;
   }
+}
 
-  const gapSet = new Set((crossword.gaps || []).map(g => `${g.row-1},${g.col-1}`));
+crossword.entries.forEach(placeWord);
 
-  const mask = Array.from({length: N}, () => Array.from({length: N}, () => false));
+// render
+const gridEl = document.getElementById("grid");
+const table = document.createElement("table");
+const inputs = Array.from({length:H}, ()=> Array.from({length:W}, ()=> null));
 
-  function assertInBounds(r, c, label) {
-    if (r < 0 || r >= N || c < 0 || c >= N) {
-      throw new Error(`${label} выходит за границы сетки (size=${N}).`);
+for(let r=0;r<H;r++){
+  const tr=document.createElement("tr");
+  for(let c=0;c<W;c++){
+    const td=document.createElement("td");
+    if(!mask[r][c]){
+      td.className="block";
+    } else if(gapSet.has(`${r},${c}`)){
+      td.className="gap";
+    } else {
+      const inp=document.createElement("input");
+      inp.className="cell";
+      inp.maxLength=1;
+      inp.inputMode="text";
+      inp.autocomplete="off";
+      inp.spellcheck=false;
+
+      inp.addEventListener("input", ()=>{
+        inp.value=normalize(inp.value).slice(0,1);
+        const next=findNext(r,c);
+        if(inp.value && next) next.focus();
+      });
+
+      inputs[r][c]=inp;
+      td.appendChild(inp);
     }
+    tr.appendChild(td);
   }
+  table.appendChild(tr);
+}
+gridEl.appendChild(table);
 
-  // gaps делаем “не черными”
-  for (const key of gapSet) {
-    const [r, c] = key.split(",").map(Number);
-    assertInBounds(r, c, "Серая клетка (gap)");
-    mask[r][c] = true;
-  }
+function findNext(r,c){
+  for(let cc=c+1;cc<W;cc++) if(inputs[r][cc]) return inputs[r][cc];
+  for(let rr=r+1;rr<H;rr++) for(let cc=0;cc<W;cc++) if(inputs[rr][cc]) return inputs[rr][cc];
+  return null;
+}
 
-  function placeWord(e) {
-    const w = normalize(e.answer);
-    for (let i = 0; i < w.length; i++) {
-      const r = e.row - 1 + (e.dir === "down" ? i : 0);
-      const c = e.col - 1 + (e.dir === "across" ? i : 0);
-      assertInBounds(r, c, `Слово "${e.answer}"`);
-      if (gapSet.has(`${r},${c}`)) {
-        throw new Error(`Слово "${e.answer}" попало в серую клетку. Проверь row/col.`);
-      }
-      mask[r][c] = true;
+// clues
+const acrossOl=document.getElementById("across");
+const downOl=document.getElementById("down");
+function label(e){ return e.label? e.label : String(e.id); }
+
+crossword.entries.slice().sort((a,b)=>a.id-b.id).forEach(e=>{
+  const li=document.createElement("li");
+  li.textContent = `${label(e)}. ${e.clue} (${normalize(e.answer).length})`;
+  (e.dir==="across"?acrossOl:downOl).appendChild(li);
+});
+
+// check / clear
+function getCellValue(r,c){ const inp=inputs[r][c]; return inp?normalize(inp.value):""; }
+
+function check(){
+  let ok=0,total=0;
+  crossword.entries.forEach(e=>{
+    const w=normalize(e.answer);
+    for(let i=0;i<w.length;i++){
+      const r=(e.row-1)+(e.dir==="down"?i:0);
+      const c=(e.col-1)+(e.dir==="across"?i:0);
+      total++;
+      if(getCellValue(r,c)===w[i]) ok++;
     }
-  }
+  });
+  const msg=document.getElementById("msg");
+  msg.textContent = (ok===total && total>0) ? "Готово! Всё верно 🎉" : `Верно: ${ok} из ${total} букв`;
+}
 
-  crossword.entries.forEach(placeWord);
-
-  // render
-  const gridEl = document.getElementById("grid");
-  const table = document.createElement("table");
-  const inputs = Array.from({length: N}, () => Array.from({length: N}, () => null));
-
-  for (let r = 0; r < N; r++) {
-    const tr = document.createElement("tr");
-    for (let c = 0; c < N; c++) {
-      const td = document.createElement("td");
-
-      if (!mask[r][c]) {
-        td.className = "block";
-      } else if (gapSet.has(`${r},${c}`)) {
-        td.className = "gap";
-      } else {
-        const inp = document.createElement("input");
-        inp.className = "cell";
-        inp.maxLength = 1;
-        inp.inputMode = "text";
-        inp.autocomplete = "off";
-        inp.spellcheck = false;
-
-        inp.addEventListener("input", () => {
-          inp.value = normalize(inp.value).slice(0,1);
-          const next = findNext(r, c);
-          if (inp.value && next) next.focus();
-        });
-
-        inp.addEventListener("keydown", (ev) => {
-          const key = ev.key;
-          if (key === "ArrowRight") focusCell(r, c+1);
-          if (key === "ArrowLeft")  focusCell(r, c-1);
-          if (key === "ArrowDown")  focusCell(r+1, c);
-          if (key === "ArrowUp")    focusCell(r-1, c);
-        });
-
-        inputs[r][c] = inp;
-        td.appendChild(inp);
-      }
-
-      tr.appendChild(td);
-    }
-    table.appendChild(tr);
-  }
-  gridEl.appendChild(table);
-
-  function focusCell(r, c) {
-    if (r < 0 || r >= N || c < 0 || c >= N) return;
-    const inp = inputs[r][c];
-    if (inp) inp.focus();
-  }
-
-  function findNext(r, c) {
-    for (let cc = c + 1; cc < N; cc++) if (inputs[r][cc]) return inputs[r][cc];
-    for (let rr = r + 1; rr < N; rr++) for (let cc = 0; cc < N; cc++) if (inputs[rr][cc]) return inputs[rr][cc];
-    return null;
-  }
-
-  // clues
-  const acrossOl = document.getElementById("across");
-  const downOl = document.getElementById("down");
-
-  function displayLabel(e) {
-    return e.label ? e.label : String(e.id);
-  }
-
-  crossword.entries
-    .slice()
-    .sort((a,b) => a.id - b.id)
-    .forEach(e => {
-      const li = document.createElement("li");
-      const len = normalize(e.answer).length;
-      li.textContent = `${displayLabel(e)}. ${e.clue} (${len})`;
-      (e.dir === "across" ? acrossOl : downOl).appendChild(li);
-    });
-
-  // check / clear
-  function getCellValue(r, c) {
-    const inp = inputs[r][c];
-    return inp ? normalize(inp.value) : "";
-  }
-
-  function check() {
-    let ok = 0;
-    let total = 0;
-
-    crossword.entries.forEach(e => {
-      const w = normalize(e.answer);
-      for (let i = 0; i < w.length; i++) {
-        const r = e.row - 1 + (e.dir === "down" ? i : 0);
-        const c = e.col - 1 + (e.dir === "across" ? i : 0);
-        total++;
-        if (getCellValue(r,c) === w[i]) ok++;
-      }
-    });
-
-    const msg = document.getElementById("msg");
-    if (ok === total && total > 0) msg.textContent = "Готово! Всё верно 🎉";
-    else msg.textContent = `Верно: ${ok} из ${total} букв`;
-  }
-
-  function clearAll() {
-    for (let r = 0; r < N; r++) {
-      for (let c = 0; c < N; c++) {
-        if (inputs[r][c]) inputs[r][c].value = "";
-      }
-    }
-    document.getElementById("msg").textContent = "";
-  }
-
-  document.getElementById("checkBtn").addEventListener("click", check);
-  document.getElementById("clearBtn").addEventListener("click", clearAll);
-
-  // фокус в первую активную клетку
-  outer:
-  for (let r = 0; r < N; r++) {
-    for (let c = 0; c < N; c++) {
-      if (inputs[r][c]) { inputs[r][c].focus(); break outer; }
-    }
-  }
+function clearAll(){
+  for(let r=0;r<H;r++) for(let c=0;c<W;c++) if(inputs[r][c]) inputs[r][c].value="";
+  document.getElementById("msg").textContent="";
+}
+document.getElementById("checkBtn").addEventListener("click", check);
+document.getElementById("clearBtn").addEventListener("click", clearAll);
 </script>
 </body>
 </html>
