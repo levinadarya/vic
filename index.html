@@ -13,7 +13,8 @@
     table { border-collapse: collapse; }
     td { width: 34px; height: 34px; border: 1px solid #ddd; text-align: center; vertical-align: middle; }
     td.block { background: #222; border-color: #222; }
-    td.gap  { background: #cfcfcf; border-color: #c0c0c0; } /* серые “пробелы” */
+    td.gap  { background: #cfcfcf; border-color: #c0c0c0; }
+    td.err  { background: #ffe8e8; border-color: #f2b4b4; }
 
     input.cell {
       width: 100%; height: 100%;
@@ -23,17 +24,20 @@
       font-size: 16px;
       background: transparent;
     }
+
     .clues { display: grid; gap: 12px; grid-template-columns: 1fr; }
     .clues h3 { margin: 0 0 8px; font-size: 16px; }
     .clues ol { margin: 0; padding-left: 18px; }
     .clues li { margin: 6px 0; line-height: 1.25; }
+
     .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
     button {
       border: 1px solid #ddd; background: #fff; cursor: pointer;
       padding: 10px 12px; border-radius: 12px; font-size: 14px;
     }
-    .msg { font-size: 14px; }
+    .msg { font-size: 14px; color: #111; }
     .note { font-size: 13px; color: #555; }
+
     @media (min-width: 860px) {
       .top { grid-template-columns: 1.1fr 0.9fr; align-items: start; }
       .clues { grid-template-columns: 1fr 1fr; }
@@ -75,40 +79,36 @@
 
 <script>
 /*
-  Тут всё ручное, но дружелюбное:
-  - size: размер поля
-  - entries: слова с координатами (row, col) и направлением ("across" / "down")
-  - gaps: серые клетки-пробелы по координатам
+  Английский кроссворд с серыми “пробелами” между частями фразы.
   Координаты начинаются с 1.
 */
 
 const crossword = {
-  size: 16,
+  size: 22,
 
-  // Серые клетки (“пробелы”) — тут мы ставим их вручную
-  // Для фразы: MESSAGES [gap] FROM [gap] THE [gap] STARS
-  // Мы кладём фразу вертикально внизу как “финал”, а пробелы — между частями.
+  // Серые клетки между словами в финальной фразе:
+  // MESSAGES (8) [gap] FROM (4) [gap] THE (3) [gap] STARS (5)
+  // Мы кладём фразу вертикально “внизу”, чтобы она угадывалась ближе к концу.
   gaps: [
-    { row: 9,  col: 8 },  // между MESSAGES и FROM
-    { row: 14, col: 8 },  // между FROM и THE
-    { row: 18, col: 8 }   // между THE и STARS
+    { row: 15, col: 11 }, // после MESSAGES
+    { row: 20, col: 11 }, // после FROM
+    { row: 24, col: 11 }  // после THE
   ],
 
   entries: [
-    // ФИНАЛЬНАЯ ФРАЗА (разбита на 4 части, серые клетки между ними)
-    // Нумерация/метки — через label, чтобы можно было сделать "12", "12 (2)" и т.д.
-    { id: 1201, label: "12",     dir: "down", row: 5,  col: 8,  answer: "MESSAGES", clue: "Название песни, под которую красиво катаются на роликах" },
-    { id: 1202, label: "12 (2)", dir: "down", row: 10, col: 8,  answer: "FROM",     clue: "Название песни, под которую красиво катаются на роликах" },
-    { id: 1203, label: "12 (3)", dir: "down", row: 15, col: 8,  answer: "THE",      clue: "Название песни, под которую красиво катаются на роликах" },
-    { id: 1204, label: "12 (4)", dir: "down", row: 19, col: 8,  answer: "STARS",    clue: "Название песни, под которую красиво катаются на роликах" },
+    // Финальная фраза, разбитая на 4 части с одинаковой подсказкой + (2)(3)(4)
+    { id: 1201, label: "12",     dir: "down", row: 7,  col: 11, answer: "MESSAGES", clue: "Название песни, под которую красиво катаются на роликах" },
+    { id: 1202, label: "12 (2)", dir: "down", row: 16, col: 11, answer: "FROM",     clue: "Название песни, под которую красиво катаются на роликах" },
+    { id: 1203, label: "12 (3)", dir: "down", row: 21, col: 11, answer: "THE",      clue: "Название песни, под которую красиво катаются на роликах" },
+    { id: 1204, label: "12 (4)", dir: "down", row: 25, col: 11, answer: "STARS",    clue: "Название песни, под которую красиво катаются на роликах" },
 
-    // Остальные английские слова — пересекаются с “финалом”, чтобы он в конце собирался
-    { id: 1, dir: "across", row: 5,  col: 6,  answer: "MADMEN",    clue: "Новый офисик" },              // пересечение по A на (5,8)
-    { id: 2, dir: "across", row: 10, col: 7,  answer: "PLAY",      clue: "Кнопка на пульте для включения кино" }, // пересечение по R? (тут нет) — просто рядом
-    { id: 3, dir: "across", row: 13, col: 1,  answer: "VIBURNUM",  clue: "Другое название калины (англ.)" },     // пересечение по M на (13,8) — последняя буква M
-    { id: 4, dir: "across", row: 15, col: 6,  answer: "VPN",       clue: "Платное изобретение Яши и бесплатное Песочка" }, // рядом
-    { id: 5, dir: "across", row: 19, col: 8,  answer: "SPF",       clue: "То, что Эльза не захотела покупать Владу" },      // начинается на S (19,8)
-    { id: 6, dir: "across", row: 7,  col: 8,  answer: "MAYFLOWER", clue: "Полное имя Рубика" } // пересечение по S? (нет) — стоит от (7,8) вправо, как “декор”
+    // Остальные слова (пока простые, без жёсткой пересечённости — можно улучшить дальше)
+    { id: 1, dir: "across", row: 8,  col: 6,  answer: "MADMEN",    clue: "Новый офисик" },
+    { id: 2, dir: "across", row: 10, col: 3,  answer: "MAYFLOWER", clue: "Полное имя Рубика" },
+    { id: 3, dir: "across", row: 16, col: 2,  answer: "PLAY",      clue: "Кнопка на пульте для включения кино" },
+    { id: 4, dir: "across", row: 18, col: 2,  answer: "VIBURNUM",  clue: "Другое название калины (англ.)" },
+    { id: 5, dir: "across", row: 21, col: 2,  answer: "VPN",       clue: "Платное изобретение Яши и бесплатное Песочка" },
+    { id: 6, dir: "across", row: 25, col: 2,  answer: "SPF",       clue: "То, что Эльза не захотела покупать Владу" }
   ]
 };
 
@@ -118,35 +118,42 @@ function normalize(s) {
   return (s || "").toString().trim().toUpperCase();
 }
 
-// --- строим маску: где чёрные блоки, где белые клетки, где серые gap
-const mask = Array.from({length: N}, () => Array.from({length: N}, () => false));
+// --- собираем gapSet
 const gapSet = new Set((crossword.gaps || []).map(g => `${g.row-1},${g.col-1}`));
+
+// --- строим маску
+const mask = Array.from({length: N}, () => Array.from({length: N}, () => false));
+
+function assertInBounds(r, c, label) {
+  if (r < 0 || r >= N || c < 0 || c >= N) {
+    throw new Error(`${label} выходит за границы сетки (size=${N}).`);
+  }
+}
 
 function placeWord(e) {
   const w = normalize(e.answer);
   for (let i = 0; i < w.length; i++) {
     const r = e.row - 1 + (e.dir === "down" ? i : 0);
     const c = e.col - 1 + (e.dir === "across" ? i : 0);
-    if (r < 0 || r >= N || c < 0 || c >= N) {
-      throw new Error(`Слово "${e.answer}" выходит за границы сетки`);
-    }
-    // Если тут стоит gap — это ошибка разметки
+    assertInBounds(r, c, `Слово "${e.answer}"`);
     if (gapSet.has(`${r},${c}`)) {
-      throw new Error(`Слово "${e.answer}" попало в серую клетку (gap). Проверь координаты.`);
+      throw new Error(`Слово "${e.answer}" попало в серую клетку. Проверь row/col.`);
     }
     mask[r][c] = true;
   }
 }
 
-// gaps тоже должны быть “не чёрными”
+// gaps тоже делаем “не чёрными”
 for (const key of gapSet) {
   const [r, c] = key.split(",").map(Number);
-  if (r >= 0 && r < N && c >= 0 && c < N) mask[r][c] = true;
+  assertInBounds(r, c, "Серая клетка (gap)");
+  mask[r][c] = true;
 }
 
+// ставим слова
 crossword.entries.forEach(placeWord);
 
-// --- render table
+// --- render
 const gridEl = document.getElementById("grid");
 const table = document.createElement("table");
 const inputs = Array.from({length: N}, () => Array.from({length: N}, () => null));
@@ -160,7 +167,6 @@ for (let r = 0; r < N; r++) {
       td.className = "block";
     } else if (gapSet.has(`${r},${c}`)) {
       td.className = "gap";
-      // серые клетки без ввода
     } else {
       const inp = document.createElement("input");
       inp.className = "cell";
@@ -200,13 +206,12 @@ function focusCell(r, c) {
 }
 
 function findNext(r, c) {
-  // переход вправо, затем вниз (пропускает чёрные и серые клетки)
   for (let cc = c + 1; cc < N; cc++) if (inputs[r][cc]) return inputs[r][cc];
   for (let rr = r + 1; rr < N; rr++) for (let cc = 0; cc < N; cc++) if (inputs[rr][cc]) return inputs[rr][cc];
   return null;
 }
 
-// --- render clues
+// --- clues
 const acrossOl = document.getElementById("across");
 const downOl = document.getElementById("down");
 
@@ -216,7 +221,7 @@ function displayLabel(e) {
 
 crossword.entries
   .slice()
-  .sort((a,b) => (a.id - b.id))
+  .sort((a,b) => a.id - b.id)
   .forEach(e => {
     const li = document.createElement("li");
     const len = normalize(e.answer).length;
@@ -224,7 +229,7 @@ crossword.entries
     (e.dir === "across" ? acrossOl : downOl).appendChild(li);
   });
 
-// --- check answers
+// --- check / clear
 function getCellValue(r, c) {
   const inp = inputs[r][c];
   return inp ? normalize(inp.value) : "";
@@ -262,9 +267,10 @@ document.getElementById("checkBtn").addEventListener("click", check);
 document.getElementById("clearBtn").addEventListener("click", clearAll);
 
 // фокус в первую активную клетку
+outer:
 for (let r = 0; r < N; r++) {
   for (let c = 0; c < N; c++) {
-    if (inputs[r][c]) { inputs[r][c].focus(); r = N; break; }
+    if (inputs[r][c]) { inputs[r][c].focus(); break outer; }
   }
 }
 </script>
