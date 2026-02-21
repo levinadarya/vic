@@ -81,22 +81,24 @@
     .gameArea{
       flex: 1;
       display: flex;
+      flex-direction: column;
       justify-content: center;
-      align-items: flex-start;
+      align-items: center;
       padding: 10px 12px calc(110px + var(--kb) + env(safe-area-inset-bottom)) 12px;
       box-sizing: border-box;
       overflow: hidden;
     }
 
-    .gridWrap{
-      max-width: 980px;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-    }
+   .gridWrap{
+  max-width: 980px;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
 
     #grid{
       width: 100%;
@@ -213,6 +215,22 @@
     .embed .actions{
       display: none;
     }
+    /* Подсказка сразу под кроссвордом — всегда видна */
+.inlineClue{
+  max-width: 980px;
+  width: 100%;
+  margin: 8px auto 0;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+/* нижнюю плашку поднимем чуть выше на всякий случай */
+.cluebar{
+  bottom: calc(var(--kb) + env(safe-area-inset-bottom) + 8px) !important;
+}
   </style>
 </head>
 <body>
@@ -234,6 +252,12 @@
       <div class="gridWrap" id="gridWrap">
         <div id="grid"></div>
       </div>
+      <div class="inlineClue" id="inlineClue">
+  <div class="cluebar-top">
+    <span id="clueDir2" class="cluechip">—</span>
+  </div>
+  <div id="clueText2" class="cluebar-text">Нажмите на слово, чтобы увидеть подсказку</div>
+</div>
     </div>
   </div>
 
@@ -395,15 +419,25 @@
 
   // Клавиатура через visualViewport
   function updateKeyboardOffset(){
-    const vv = window.visualViewport;
-    if(!vv){
-      document.documentElement.style.setProperty("--kb", "0px");
-      return;
-    }
-    const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-    document.documentElement.style.setProperty("--kb", `${kb}px`);
+  const vv = window.visualViewport;
+  if(!vv){
+    document.documentElement.style.setProperty("--kb", "0px");
+    return;
   }
 
+  // Надёжный расчёт: сколько “съела” клавиатура снизу
+  const bottomGap = Math.max(0, Math.round(window.innerHeight - (vv.height + vv.offsetTop)));
+  document.documentElement.style.setProperty("--kb", `${bottomGap}px`);
+}
+document.addEventListener("focusin", (e) => {
+  if(e.target && e.target.classList && e.target.classList.contains("cell")){
+    updateKeyboardOffset();
+  }
+});
+document.addEventListener("focusout", () => {
+  // когда клавиатура закрылась — вернём вниз
+  setTimeout(updateKeyboardOffset, 50);
+});
   function relayout(){
     updateKeyboardOffset();
     // после обновления padding снизу — пересчитать cell
@@ -419,7 +453,9 @@
 
   // подсказки
   const clueDir = document.getElementById("clueDir");
-  const clueText = document.getElementById("clueText");
+const clueText = document.getElementById("clueText");
+const clueDir2 = document.getElementById("clueDir2");
+const clueText2 = document.getElementById("clueText2");
 
   const cellToEntries = new Map();
   function addCellEntry(r,c,entry){
@@ -467,6 +503,8 @@
     else { clearActiveHighlight(); highlightEntry(entry); }
 
     activeEntry = entry;
+    clueDir2.textContent = clueDir.textContent;
+clueText2.textContent = clueText.textContent;
   }
 
   function pickEntryForCellKey(key){
