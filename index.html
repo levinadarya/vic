@@ -6,7 +6,7 @@
   <title>Кроссворд</title>
   <style>
     :root{
-      --cell: 34px;
+      --cell: 32px;  /* будет пересчитано JS-ом */
       --border: 2px;
     }
 
@@ -40,23 +40,20 @@
       margin: 0 0 12px;
     }
 
-    /* важно: не ужимать клетки, а давать скролл */
+    /* больше не скроллим */
     .gridWrap{
-      overflow: auto;
-      -webkit-overflow-scrolling: touch;
+      overflow: hidden;
       padding: 6px;
     }
 
     table{
       border-collapse: collapse;
-      table-layout: fixed;       /* ключ к “ровным” квадратам */
+      table-layout: fixed;
     }
 
     td{
       width: var(--cell);
       height: var(--cell);
-      min-width: var(--cell);    /* не даём сжимать */
-      min-height: var(--cell);
       padding: 0;
       box-sizing: border-box;
       text-align: center;
@@ -99,12 +96,11 @@
       text-transform: uppercase;
       text-align: center;
 
-      font-size: 16px;
-      line-height: var(--cell);  /* фиксируем, чтобы iOS не “тянул” */
+      font-size: calc(var(--cell) * 0.48);
+      line-height: var(--cell);
       caret-color: #111;
     }
 
-    /* Подсказка сразу под кроссвордом */
     .cluebar{
       margin-top: 10px;
       border: 1px solid #ddd;
@@ -158,17 +154,10 @@
       align-self: center;
     }
 
-    /* Embed-режим: скрываем всё лишнее */
     .embed .title,
     .embed .note,
     .embed .actions{
       display: none;
-    }
-
-    /* Чуть меньше клетки на очень маленьких экранах */
-    @media (max-width: 390px){
-      :root{ --cell: 30px; }
-      input.cell{ font-size: 15px; }
     }
   </style>
 </head>
@@ -178,7 +167,9 @@
       <div class="title">Кроссворд (EN)</div>
       <div class="note">Серые клетки — пробелы между словами. Нажмите на слово, чтобы увидеть подсказку.</div>
 
-      <div class="gridWrap" id="grid"></div>
+      <div class="gridWrap" id="gridWrap">
+        <div id="grid"></div>
+      </div>
 
       <div id="clueBar" class="cluebar">
         <div class="cluebar-top">
@@ -196,38 +187,24 @@
   </div>
 
 <script>
-/* embed режим:
-   - если ?embed=1
-   - или если страница открыта внутри iframe
-*/
 const params = new URLSearchParams(location.search);
 const isEmbed = params.get("embed") === "1" || (window.self !== window.top);
 if (isEmbed) document.getElementById("panel").classList.add("embed");
 
-/*
-  Форма “как на фото”: компактная фигура без чёрного фона.
-  Messages from the stars — разделяем серыми клетками.
-  Важно: если нажимаешь на любую часть фразы — подсвечиваем всю фразу целиком.
-*/
-
 const crossword = {
   width: 33,
   height: 13,
-
   gaps: [
-    { row: 9, col: 18 }, // после MESSAGES
-    { row: 9, col: 23 }, // после FROM
-    { row: 9, col: 27 }, // после THE
+    { row: 9, col: 18 },
+    { row: 9, col: 23 },
+    { row: 9, col: 27 },
   ],
-
   entries: [
-    // “каркас” как на фото
     { id: 1, dir:"across", row: 6, col: 2,  answer:"MAYFLOWER", clue:"Полное имя Рубика" },
     { id: 2, dir:"down",   row: 6, col: 2,  answer:"MADMEN",    clue:"Новый офисик" },
     { id: 3, dir:"down",   row: 2, col: 10, answer:"VIBURNUM",  clue:"Другое название калины (англ.)" },
     { id: 4, dir:"across", row: 2, col: 10, answer:"VPN",       clue:"Платное изобретение Яши и бесплатное Песочка" },
 
-    // Фраза: все части в одной группе phrase12
     { id: 12,   dir:"across", row: 9, col: 10, answer:"MESSAGES", group:"phrase12",
       clue:"Название песни, под которую красиво катаются на роликах" },
     { id: 1202, dir:"across", row: 9, col: 19, answer:"FROM", group:"phrase12",
@@ -237,7 +214,6 @@ const crossword = {
     { id: 1204, dir:"across", row: 9, col: 28, answer:"STARS", group:"phrase12",
       clue:"Название песни, под которую красиво катаются на роликах" },
 
-    // Вертикальные пересечения
     { id: 5, dir:"down", row: 7, col: 14, answer:"PLAY", clue:"Кнопка на пульте для включения кино" },
     { id: 6, dir:"down", row: 9, col: 12, answer:"SPF",  clue:"То, что Эльза не захотела покупать Владу" }
   ]
@@ -273,15 +249,15 @@ function placeWord(e){
 }
 crossword.entries.forEach(placeWord);
 
-// автокадрирование
+// кадрирование
 let minR=H-1, maxR=0, minC=W-1, maxC=0;
 for(let r=0;r<H;r++){
   for(let c=0;c<W;c++){
     if(mask[r][c]){
-      if(r<minR) minR=r;
-      if(r>maxR) maxR=r;
-      if(c<minC) minC=c;
-      if(c>maxC) maxC=c;
+      minR = Math.min(minR, r);
+      maxR = Math.max(maxR, r);
+      minC = Math.min(minC, c);
+      maxC = Math.max(maxC, c);
     }
   }
 }
@@ -291,12 +267,16 @@ minC = Math.max(0, minC-PAD);
 maxR = Math.min(H-1, maxR+PAD);
 maxC = Math.min(W-1, maxC+PAD);
 
-// render
+const colsVisible = (maxC - minC + 1);
+const rowsVisible = (maxR - minR + 1);
+
+// Рендер
 const gridEl = document.getElementById("grid");
 const table = document.createElement("table");
+table.id = "cwTable";
 
-const inputByKey = new Map(); // "r,c" -> input
-const tdByKey = new Map();    // "r,c" -> td
+const inputByKey = new Map();
+const tdByKey = new Map();
 
 for(let r=minR;r<=maxR;r++){
   const tr=document.createElement("tr");
@@ -332,12 +312,33 @@ for(let r=minR;r<=maxR;r++){
 }
 gridEl.appendChild(table);
 
-// clue bar
+// Автомасштаб: уместить по ширине без скролла, сохраняя квадрат
+function computeCellSize(){
+  const wrap = document.getElementById("gridWrap");
+  const style = getComputedStyle(wrap);
+  const paddingX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+
+  // доступная ширина под таблицу
+  const available = Math.floor(wrap.clientWidth - paddingX);
+
+  // учитываем толщину границ: каждая клетка имеет border с двух сторон,
+  // но в таблице соседние границы “делят” пиксели визуально — поэтому берём запас
+  const minCell = 22;
+  const maxCell = 36;
+
+  let cell = Math.floor(available / colsVisible);
+  cell = Math.max(minCell, Math.min(maxCell, cell));
+
+  document.documentElement.style.setProperty("--cell", `${cell}px`);
+}
+computeCellSize();
+window.addEventListener("resize", computeCellSize);
+
+// Подсказки + выделение
 const clueDir = document.getElementById("clueDir");
 const clueText = document.getElementById("clueText");
 
-// карта клетка -> слова
-const cellToEntries = new Map(); // "r,c" -> [entry,...]
+const cellToEntries = new Map();
 function addCellEntry(r,c,entry){
   const key = `${r},${c}`;
   if(!cellToEntries.has(key)) cellToEntries.set(key, []);
@@ -372,25 +373,16 @@ function highlightEntry(entry){
 function highlightGroup(groupId){
   clearActiveHighlight();
   for(const e of crossword.entries){
-    if(e.group === groupId){
-      highlightEntry(e);
-    }
+    if(e.group === groupId) highlightEntry(e);
   }
 }
 
 function showClue(entry){
-  const dirRu = entry.dir === "across" ? "По горизонтали" : "По вертикали";
-  clueDir.textContent = dirRu;
+  clueDir.textContent = entry.dir === "across" ? "По горизонтали" : "По вертикали";
+  clueText.textContent = entry.clue;
 
-  // если это часть фразы — подсвечиваем всю фразу
-  if(entry.group){
-    clueText.textContent = entry.clue;
-    highlightGroup(entry.group);
-  } else {
-    clueText.textContent = entry.clue;
-    clearActiveHighlight();
-    highlightEntry(entry);
-  }
+  if(entry.group) highlightGroup(entry.group);
+  else { clearActiveHighlight(); highlightEntry(entry); }
 
   activeEntry = entry;
 }
@@ -399,32 +391,28 @@ function pickEntryForCellKey(key){
   const list = cellToEntries.get(key) || [];
   if(list.length === 0) return null;
 
-  // повторный тап по той же клетке: переключаем слово на пересечении
   if(lastTapKey === key && list.length > 1 && activeEntry){
     const idx = list.findIndex(x => x === activeEntry);
     if(idx >= 0) return list[(idx + 1) % list.length];
     return list[1];
   }
 
-  // иначе: приоритет горизонтали
   const across = list.find(x => x.dir === "across");
   return across || list[0];
 }
 
-// обработчики
 for(const [key, inp] of inputByKey.entries()){
   const handler = () => {
     lastTapKey = key;
     const entry = pickEntryForCellKey(key);
     if(entry) showClue(entry);
   };
-
   inp.addEventListener("focus", handler);
   inp.addEventListener("click", handler);
   inp.addEventListener("touchend", handler, {passive:true});
 }
 
-// check / clear
+// check/clear
 function getCellValueKey(key){
   const inp = inputByKey.get(key);
   return inp ? normalize(inp.value) : "";
