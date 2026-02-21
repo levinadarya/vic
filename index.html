@@ -11,9 +11,10 @@
     .card { border: 1px solid #e5e5e5; border-radius: 16px; padding: 14px; }
     .grid { display: inline-block; border: 1px solid #ddd; border-radius: 12px; padding: 10px; overflow: auto; }
     table { border-collapse: collapse; }
-    td { width: 32px; height: 32px; border: 1px solid #ddd; text-align: center; vertical-align: middle; }
+    td { width: 32px; height: 32px; border: 1px solid #ddd; text-align: center; vertical-align: middle; position: relative; }
     td.block { background: #222; border-color: #222; }
     td.gap  { background: #cfcfcf; border-color: #c0c0c0; }
+    .num { position: absolute; top: 2px; left: 4px; font-size: 10px; color: #444; user-select: none; }
 
     input.cell {
       width: 100%; height: 100%;
@@ -47,7 +48,7 @@
   <div class="wrap">
     <div class="card">
       <h2 style="margin:0 0 6px;">Кроссворд (EN)</h2>
-      <div class="note">Серые клетки — это пробелы между словами. Вводите по одной букве.</div>
+      <div class="note">Серые клетки — пробелы между словами. Вводите по одной букве.</div>
     </div>
 
     <div class="top" style="margin-top:12px;">
@@ -77,31 +78,39 @@
   </div>
 
 <script>
-const crossword = {
-  width: 23,
-  height: 15,
+/*
+  Компактный кроссворд с пересечениями + финальная фраза внизу:
+  MESSAGES [gap] FROM [gap] THE [gap] STARS
+  Координаты 1-based.
+*/
 
-  // серые пробелы в финальной строке (row 14)
+const crossword = {
+  width: 33,
+  height: 13,
+
+  // серые пробелы в строке с фразой (row 9)
   gaps: [
-    { row: 14, col: 9 },  // после MESSAGES
-    { row: 14, col: 14 }, // после FROM
-    { row: 14, col: 18 }, // после THE
+    { row: 9, col: 18 }, // после MESSAGES (col10-17)
+    { row: 9, col: 23 }, // после FROM (col19-22)
+    { row: 9, col: 27 }, // после THE (col24-26)
   ],
 
   entries: [
-    // Финальная фраза внизу — разбито на 4 слова, одинаковая подсказка + (2)(3)(4)
-    { id: 1201, label: "12",     dir: "across", row: 14, col: 1,  answer: "MESSAGES", clue: "Название песни, под которую красиво катаются на роликах" },
-    { id: 1202, label: "12 (2)", dir: "across", row: 14, col: 10, answer: "FROM",     clue: "Название песни, под которую красиво катаются на роликах" },
-    { id: 1203, label: "12 (3)", dir: "across", row: 14, col: 15, answer: "THE",      clue: "Название песни, под которую красиво катаются на роликах" },
-    { id: 1204, label: "12 (4)", dir: "across", row: 14, col: 19, answer: "STARS",    clue: "Название песни, под которую красиво катаются на роликах" },
+    // Горизонтально (как твой пример)
+    { id: 1,  dir:"across", row: 6, col: 2,  answer:"MAYFLOWER", clue:"Полное имя Рубика" },
+    { id: 4,  dir:"across", row: 2, col: 10, answer:"VPN",       clue:"Платное изобретение Яши и бесплатное Песочка" },
 
-    // Остальные слова (пересечения с финальной строкой — через буквы S/E/T/A/R)
-    { id: 1, dir: "down", row: 10, col: 1,  answer: "SPF",      clue: "То, что Эльза не захотела покупать Владу" }, // S в STARS (col19 тоже S, но тут отдельное)
-    { id: 2, dir: "down", row: 6,  col: 5,  answer: "VPN",      clue: "Платное изобретение Яши и бесплатное Песочка" },
-    { id: 3, dir: "down", row: 6,  col: 7,  answer: "PLAY",     clue: "Кнопка на пульте для включения кино" },
-    { id: 4, dir: "down", row: 3,  col: 6,  answer: "MADMEN",   clue: "Новый офисик" },
-    { id: 5, dir: "down", row: 1,  col: 3,  answer: "MAYFLOWER",clue: "Полное имя Рубика" },
-    { id: 6, dir: "down", row: 2,  col: 8,  answer: "VIBURNUM", clue: "Другое название калины (англ.)" },
+    // Финальная фраза — 4 части на одной строке + одинаковая подсказка
+    { id: 12,    label:"12",     dir:"across", row: 9, col: 10, answer:"MESSAGES", clue:"Название песни, под которую красиво катаются на роликах" },
+    { id: 1202,  label:"12 (2)", dir:"across", row: 9, col: 19, answer:"FROM",     clue:"Название песни, под которую красиво катаются на роликах" },
+    { id: 1203,  label:"12 (3)", dir:"across", row: 9, col: 24, answer:"THE",      clue:"Название песни, под которую красиво катаются на роликах" },
+    { id: 1204,  label:"12 (4)", dir:"across", row: 9, col: 28, answer:"STARS",    clue:"Название песни, под которую красиво катаются на роликах" },
+
+    // Вертикально (пересекается с нижней строкой как в примере)
+    { id: 6, dir:"down",  row: 6, col: 2,  answer:"MADMEN",   clue:"Новый офисик" },          // M на пересечении с MAYFLOWER
+    { id: 7, dir:"down",  row: 2, col: 10, answer:"VIBURNUM", clue:"Другое название калины (англ.)" }, // V пересекает VPN, M пересекает MESSAGES
+    { id: 3, dir:"down",  row: 7, col: 14, answer:"PLAY",     clue:"Кнопка на пульте для включения кино" }, // A пересекает MESSAGES
+    { id: 2, dir:"down",  row: 9, col: 12, answer:"SPF",      clue:"То, что Эльза не захотела покупать Владу" } // S пересекает MESSAGES
   ]
 };
 
@@ -111,15 +120,13 @@ const H = crossword.height;
 function normalize(s){ return (s||"").toString().trim().toUpperCase(); }
 
 const gapSet = new Set((crossword.gaps||[]).map(g=>`${g.row-1},${g.col-1}`));
-
-// маска: true значит клетка существует (не чёрная)
-const mask = Array.from({length: H}, ()=> Array.from({length: W}, ()=> false));
+const mask = Array.from({length:H}, ()=> Array.from({length:W}, ()=> false));
 
 function assertInBounds(r,c,label){
   if(r<0||r>=H||c<0||c>=W) throw new Error(`${label} выходит за границы ${W}x${H}`);
 }
 
-// gaps делаем “не чёрными”
+// gaps тоже “живые” клетки
 for(const key of gapSet){
   const [r,c]=key.split(",").map(Number);
   assertInBounds(r,c,"gap");
@@ -139,20 +146,65 @@ function placeWord(e){
 
 crossword.entries.forEach(placeWord);
 
-// render
+// --- автокадрирование (чтобы не было огромного чёрного поля)
+let minR=H-1, maxR=0, minC=W-1, maxC=0;
+for(let r=0;r<H;r++){
+  for(let c=0;c<W;c++){
+    if(mask[r][c]){
+      if(r<minR) minR=r;
+      if(r>maxR) maxR=r;
+      if(c<minC) minC=c;
+      if(c>maxC) maxC=c;
+    }
+  }
+}
+// поля по краям
+const PAD = 1;
+minR = Math.max(0, minR-PAD);
+minC = Math.max(0, minC-PAD);
+maxR = Math.min(H-1, maxR+PAD);
+maxC = Math.min(W-1, maxC+PAD);
+
+// --- номера (как в кроссвордах)
+const starts = new Map(); // "r,c" => number
+let num = 1;
+function isFill(r,c){ return r>=0&&r<H&&c>=0&&c<W && mask[r][c] && !gapSet.has(`${r},${c}`); }
+for(let r=minR;r<=maxR;r++){
+  for(let c=minC;c<=maxC;c++){
+    if(!isFill(r,c)) continue;
+    const leftBlocked = !isFill(r, c-1);
+    const upBlocked   = !isFill(r-1, c);
+    const hasAcrossStart = leftBlocked && isFill(r, c+1);
+    const hasDownStart   = upBlocked && isFill(r+1, c);
+    if(hasAcrossStart || hasDownStart){
+      starts.set(`${r},${c}`, num++);
+    }
+  }
+}
+
+// --- render
 const gridEl = document.getElementById("grid");
 const table = document.createElement("table");
 const inputs = Array.from({length:H}, ()=> Array.from({length:W}, ()=> null));
 
-for(let r=0;r<H;r++){
+for(let r=minR;r<=maxR;r++){
   const tr=document.createElement("tr");
-  for(let c=0;c<W;c++){
+  for(let c=minC;c<=maxC;c++){
     const td=document.createElement("td");
+
     if(!mask[r][c]){
       td.className="block";
     } else if(gapSet.has(`${r},${c}`)){
       td.className="gap";
     } else {
+      const key = `${r},${c}`;
+      if(starts.has(key)){
+        const d = document.createElement("div");
+        d.className = "num";
+        d.textContent = String(starts.get(key));
+        td.appendChild(d);
+      }
+
       const inp=document.createElement("input");
       inp.className="cell";
       inp.maxLength=1;
@@ -176,15 +228,15 @@ for(let r=0;r<H;r++){
 gridEl.appendChild(table);
 
 function findNext(r,c){
-  for(let cc=c+1;cc<W;cc++) if(inputs[r][cc]) return inputs[r][cc];
-  for(let rr=r+1;rr<H;rr++) for(let cc=0;cc<W;cc++) if(inputs[rr][cc]) return inputs[rr][cc];
+  for(let cc=c+1;cc<=maxC;cc++) if(inputs[r][cc]) return inputs[r][cc];
+  for(let rr=r+1;rr<=maxR;rr++) for(let cc=minC;cc<=maxC;cc++) if(inputs[rr][cc]) return inputs[rr][cc];
   return null;
 }
 
-// clues
+// --- clues
 const acrossOl=document.getElementById("across");
 const downOl=document.getElementById("down");
-function label(e){ return e.label? e.label : String(e.id); }
+function label(e){ return e.label ? e.label : String(e.id); }
 
 crossword.entries.slice().sort((a,b)=>a.id-b.id).forEach(e=>{
   const li=document.createElement("li");
@@ -192,7 +244,7 @@ crossword.entries.slice().sort((a,b)=>a.id-b.id).forEach(e=>{
   (e.dir==="across"?acrossOl:downOl).appendChild(li);
 });
 
-// check / clear
+// --- check / clear
 function getCellValue(r,c){ const inp=inputs[r][c]; return inp?normalize(inp.value):""; }
 
 function check(){
@@ -211,7 +263,7 @@ function check(){
 }
 
 function clearAll(){
-  for(let r=0;r<H;r++) for(let c=0;c<W;c++) if(inputs[r][c]) inputs[r][c].value="";
+  for(let r=minR;r<=maxR;r++) for(let c=minC;c<=maxC;c++) if(inputs[r][c]) inputs[r][c].value="";
   document.getElementById("msg").textContent="";
 }
 document.getElementById("checkBtn").addEventListener("click", check);
