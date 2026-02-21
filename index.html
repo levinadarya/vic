@@ -15,15 +15,21 @@
       --acc: 0px;
     }
 
-    html, body{
-      height: 100%;
-      margin: 0;
-      background: #fff;
-      color: #111;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      -webkit-text-size-adjust: 100%;
-      overflow: hidden; /* как в приложении */
-    }
+html, body{
+  height: 100%;
+  margin: 0;
+  background: #fff;
+  color: #111;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  overflow: hidden;
+}
+
+body{
+  position: fixed;
+  inset: 0;
+  width: 100%;
+}
 
     /* важное: svh — “стабильная” высота, не прыгает при адресной строке/клавиатуре */
     .screen{
@@ -390,17 +396,30 @@
     document.documentElement.style.setProperty("--kb", `${bottomGap}px`);
   }
 
-  function relayout(){
-    updateKeyboardOffset();
-    requestAnimationFrame(computeScale);
-  }
+ function relayout(){
+  // при клавиатуре двигаем только подсказку
+  updateKeyboardOffset();
+}
 
+// один раз вписываем поле в экран
+computeScale();
+relayout();
+
+window.addEventListener("resize", () => {
+  computeScale();
   relayout();
-  window.addEventListener("resize", relayout);
-  if(window.visualViewport){
-    window.visualViewport.addEventListener("resize", relayout);
-    window.visualViewport.addEventListener("scroll", relayout);
-  }
+});
+
+window.addEventListener("orientationchange", () => {
+  setTimeout(() => { computeScale(); relayout(); }, 150);
+});
+
+// visualViewport трогаем только чтобы поднимать/опускать подсказку,
+// без пересчета масштаба (иначе дергается поле)
+if(window.visualViewport){
+  window.visualViewport.addEventListener("resize", relayout);
+  window.visualViewport.addEventListener("scroll", relayout);
+}
 
   // подсказки + выбор слов
   const clueDir = document.getElementById("clueDir");
