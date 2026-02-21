@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Кроссворд</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    .top { display: grid; gap: 12px; grid-template-columns: 1fr; }
+    .card { border: 1px solid #e5e5e5; border-radius: 16px; padding: 14px; }
+    .grid { display: inline-block; border: 1px solid #ddd; border-radius: 12px; padding: 10px; overflow: auto; }
+    table { border-collapse: collapse; }
+    td { width: 34px; height: 34px; border: 1px solid #ddd; text-align: center; vertical-align: middle; }
+    td.block { background: #222; border-color: #222; }
+    input.cell {
+      width: 100%; height: 100%;
+      border: 0; outline: none;
+      text-transform: uppercase;
+      text-align: center;
+      font-size: 16px;
+      background: transparent;
+    }
+    .clues { display: grid; gap: 12px; grid-template-columns: 1fr; }
+    .clues h3 { margin: 0 0 8px; font-size: 16px; }
+    .clues ol { margin: 0; padding-left: 18px; }
+    .clues li { margin: 6px 0; line-height: 1.25; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    button {
+      border: 1px solid #ddd; background: #fff; cursor: pointer;
+      padding: 10px 12px; border-radius: 12px; font-size: 14px;
+    }
+    .msg { font-size: 14px; }
+    .note { font-size: 13px; color: #555; }
+    @media (min-width: 860px) {
+      .top { grid-template-columns: 1.1fr 0.9fr; align-items: start; }
+      .clues { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h2 style="margin:0 0 6px;">Кроссворд №1</h2>
+      <div class="note">Подсказка: вводите по одной букве в клетку. Русские буквы поддерживаются.</div>
+    </div>
+
+    <div class="top" style="margin-top:12px;">
+      <div class="card">
+        <div class="grid" id="grid"></div>
+
+        <div class="row" style="margin-top:12px;">
+          <button id="checkBtn">Проверить</button>
+          <button id="clearBtn">Очистить</button>
+          <div class="msg" id="msg"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="clues">
+          <div>
+            <h3>По горизонтали</h3>
+            <ol id="across"></ol>
+          </div>
+          <div>
+            <h3>По вертикали</h3>
+            <ol id="down"></ol>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/*
+  ВАЖНО: это “ручной” кроссворд.
+  Вы задаёте:
+  - size: размер сетки
+  - entries: список слов с координатами (row, col) и направлением ("across" или "down")
+  Координаты начинаются с 1.
+*/
+const crossword = {
+  size: 9,
+  entries: [
+    { id: 1, dir: "across", row: 2, col: 2, answer: "ЛЮБОВЬ", clue: "Главное чувство" },
+    { id: 2, dir: "down",   row: 2, col: 2, answer: "ЛЕТО",   clue: "Время года (пример)" },
+    { id: 3, dir: "across", row: 4, col: 2, answer: "ПЕСНЯ",   clue: "Её можно подарить" },
+    { id: 4, dir: "down",   row: 2, col: 6, answer: "ВИНО",    clue: "Напиток к сыру" },
+    { id: 5, dir: "across", row: 6, col: 3, answer: "СЮРПРИЗ", clue: "То, что приятно получать" }
+  ]
+};
+
+// --- build grid mask (где клетки, где блоки)
+const N = crossword.size;
+const mask = Array.from({length: N}, () => Array.from({length: N}, () => false));
+
+function placeWord(e) {
+  const w = normalize(e.answer);
+  for (let i = 0; i < w.length; i++) {
+    const r = e.row - 1 + (e.dir === "down" ? i : 0);
+    const c = e.col - 1 + (e.dir === "across" ? i : 0);
+    if (r < 0 || r >= N || c < 0 || c >= N) {
+      throw new Error(`Слово "${e.answer}" выходит за границы сетки`);
+    }
+    mask[r][c] = true;
+  }
+}
+
+function normalize(s) {
+  return (s || "").toString().trim().toUpperCase();
+}
+
+crossword.entries.forEach(placeWord);
+
+// --- render table
+const gridEl = document.getElementById("grid");
+const table = document.createElement("table");
+const inputs = Array.from({length: N}, () => Array.from({length: N}, () => null));
+
+for (let r = 0; r < N; r++) {
+  const tr = document.createElement("tr");
+  for (let c = 0; c < N; c++) {
+    const td = document.createElement("td");
+    if (!mask[r][c]) {
+      td.className = "block";
+    } else {
+      const inp = document.createElement("input");
+      inp.className = "cell";
+      inp.maxLength = 1;
+      inp.inputMode = "text";
+      inp.autocomplete = "off";
+      inp.spellcheck = false;
+
+      inp.addEventListener("input", () => {
+        inp.value = normalize(inp.value).slice(0,1);
+        // авто-переход вправо, если там тоже клетка
+        const next = findNext(r, c);
+        if (inp.value && next) next.focus();
+      });
+
+      inp.addEventListener("keydown", (ev) => {
+        const key = ev.key;
+        if (key === "ArrowRight") focusCell(r, c+1);
+        if (key === "ArrowLeft")  focusCell(r, c-1);
+        if (key === "ArrowDown")  focusCell(r+1, c);
+        if (key === "ArrowUp")    focusCell(r-1, c);
+      });
+
+      inputs[r][c] = inp;
+      td.appendChild(inp);
+    }
+    tr.appendChild(td);
+  }
+  table.appendChild(tr);
+}
+gridEl.appendChild(table);
+
+function focusCell(r, c) {
+  if (r < 0 || r >= N || c < 0 || c >= N) return;
+  const inp = inputs[r][c];
+  if (inp) inp.focus();
+}
+function findNext(r, c) {
+  // простой переход вправо, иначе вниз
+  for (let cc = c + 1; cc < N; cc++) if (inputs[r][cc]) return inputs[r][cc];
+  for (let rr = r + 1; rr < N; rr++) for (let cc = 0; cc < N; cc++) if (inputs[rr][cc]) return inputs[rr][cc];
+  return null;
+}
+
+// --- render clues
+const acrossOl = document.getElementById("across");
+const downOl = document.getElementById("down");
+
+crossword.entries
+  .slice()
+  .sort((a,b) => a.id - b.id)
+  .forEach(e => {
+    const li = document.createElement("li");
+    li.textContent = `${e.clue} (${normalize(e.answer).length})`;
+    (e.dir === "across" ? acrossOl : downOl).appendChild(li);
+  });
+
+// --- check answers
+function getCellValue(r, c) {
+  const inp = inputs[r][c];
+  return inp ? normalize(inp.value) : "";
+}
+
+function check() {
+  let ok = 0;
+  let total = 0;
+
+  crossword.entries.forEach(e => {
+    const w = normalize(e.answer);
+    for (let i = 0; i < w.length; i++) {
+      const r = e.row - 1 + (e.dir === "down" ? i : 0);
+      const c = e.col - 1 + (e.dir === "across" ? i : 0);
+      total++;
+      if (getCellValue(r,c) === w[i]) ok++;
+    }
+  });
+
+  const msg = document.getElementById("msg");
+  if (ok === total && total > 0) msg.textContent = "Готово! Всё верно 🎉";
+  else msg.textContent = `Верно: ${ok} из ${total} букв`;
+}
+
+function clearAll() {
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      if (inputs[r][c]) inputs[r][c].value = "";
+    }
+  }
+  document.getElementById("msg").textContent = "";
+}
+
+document.getElementById("checkBtn").addEventListener("click", check);
+document.getElementById("clearBtn").addEventListener("click", clearAll);
+
+// фокус в первую клетку
+for (let r = 0; r < N; r++) {
+  for (let c = 0; c < N; c++) {
+    if (inputs[r][c]) { inputs[r][c].focus(); r = N; break; }
+  }
+}
+</script>
+</body>
+</html>
