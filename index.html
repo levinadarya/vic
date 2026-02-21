@@ -6,8 +6,12 @@
   <title>Кроссворд</title>
   <style>
     :root{
-      --cell: 32px;  /* будет пересчитано JS-ом */
+      --cell: 32px;   /* пересчитывается JS */
       --border: 2px;
+    }
+
+    html, body{
+      height: 100%;
     }
 
     body{
@@ -15,6 +19,7 @@
       margin: 0;
       background: #fff;
       color: #111;
+      overscroll-behavior: none;
     }
 
     .wrap{
@@ -27,6 +32,7 @@
       border: 1px solid #e6e6e6;
       border-radius: 16px;
       padding: 12px;
+      background: #fff;
     }
 
     .title{
@@ -40,10 +46,26 @@
       margin: 0 0 12px;
     }
 
-    /* больше не скроллим */
+    /* Игровая зона: фиксируем ощущение, чтобы не “прыгало” от клавиатуры */
+    .game{
+      height: 72vh;
+      min-height: 420px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Важное: не скроллим страницу — скроллим только внутри */
     .gridWrap{
+      flex: 1;
       overflow: hidden;
       padding: 6px;
+    }
+
+    #grid{
+      height: 100%;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
     }
 
     table{
@@ -54,6 +76,8 @@
     td{
       width: var(--cell);
       height: var(--cell);
+      min-width: var(--cell);
+      min-height: var(--cell);
       padding: 0;
       box-sizing: border-box;
       text-align: center;
@@ -96,17 +120,21 @@
       text-transform: uppercase;
       text-align: center;
 
-      font-size: calc(var(--cell) * 0.48);
-      line-height: var(--cell);
+      font-size: 16px;              /* важно для iOS: не зумит */
+      line-height: var(--cell);      /* фикс, чтобы не “тянуло” */
       caret-color: #111;
     }
 
+    /* Подсказка закреплена снизу внутри панели */
     .cluebar{
-      margin-top: 10px;
+      position: sticky;
+      bottom: 0;
+      z-index: 10;
       border: 1px solid #ddd;
       border-radius: 12px;
-      padding: 10px 12px;
+      padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
       background: #fff;
+      margin-top: 10px;
     }
 
     .cluebar-top{
@@ -154,10 +182,16 @@
       align-self: center;
     }
 
+    /* Embed-режим: скрываем всё лишнее */
     .embed .title,
     .embed .note,
     .embed .actions{
       display: none;
+    }
+
+    /* На очень маленьких экранах чуть уменьшим base */
+    @media (max-width: 390px){
+      .game{ min-height: 380px; }
     }
   </style>
 </head>
@@ -167,15 +201,17 @@
       <div class="title">Кроссворд (EN)</div>
       <div class="note">Серые клетки — пробелы между словами. Нажмите на слово, чтобы увидеть подсказку.</div>
 
-      <div class="gridWrap" id="gridWrap">
-        <div id="grid"></div>
-      </div>
-
-      <div id="clueBar" class="cluebar">
-        <div class="cluebar-top">
-          <span id="clueDir" class="cluechip">—</span>
+      <div class="game">
+        <div class="gridWrap" id="gridWrap">
+          <div id="grid"></div>
         </div>
-        <div id="clueText" class="cluebar-text">Нажмите на слово, чтобы увидеть подсказку</div>
+
+        <div id="clueBar" class="cluebar">
+          <div class="cluebar-top">
+            <span id="clueDir" class="cluechip">—</span>
+          </div>
+          <div id="clueText" class="cluebar-text">Нажмите на слово, чтобы увидеть подсказку</div>
+        </div>
       </div>
 
       <div class="actions">
@@ -187,18 +223,29 @@
   </div>
 
 <script>
+/* embed режим:
+   - если ?embed=1
+   - или если страница открыта внутри iframe
+*/
 const params = new URLSearchParams(location.search);
 const isEmbed = params.get("embed") === "1" || (window.self !== window.top);
 if (isEmbed) document.getElementById("panel").classList.add("embed");
 
+/*
+  Форма “как на фото”: компактная фигура без чёрного фона.
+  Messages from the stars — разделяем серыми клетками.
+  Если нажимаешь на любую часть фразы — подсвечиваем всю фразу целиком.
+*/
 const crossword = {
   width: 33,
   height: 13,
+
   gaps: [
-    { row: 9, col: 18 },
-    { row: 9, col: 23 },
-    { row: 9, col: 27 },
+    { row: 9, col: 18 }, // после MESSAGES
+    { row: 9, col: 23 }, // после FROM
+    { row: 9, col: 27 }, // после THE
   ],
+
   entries: [
     { id: 1, dir:"across", row: 6, col: 2,  answer:"MAYFLOWER", clue:"Полное имя Рубика" },
     { id: 2, dir:"down",   row: 6, col: 2,  answer:"MADMEN",    clue:"Новый офисик" },
@@ -268,15 +315,14 @@ maxR = Math.min(H-1, maxR+PAD);
 maxC = Math.min(W-1, maxC+PAD);
 
 const colsVisible = (maxC - minC + 1);
-const rowsVisible = (maxR - minR + 1);
 
-// Рендер
+// render
 const gridEl = document.getElementById("grid");
 const table = document.createElement("table");
 table.id = "cwTable";
 
-const inputByKey = new Map();
-const tdByKey = new Map();
+const inputByKey = new Map(); // "r,c" -> input
+const tdByKey = new Map();    // "r,c" -> td
 
 for(let r=minR;r<=maxR;r++){
   const tr=document.createElement("tr");
@@ -312,17 +358,14 @@ for(let r=minR;r<=maxR;r++){
 }
 gridEl.appendChild(table);
 
-// Автомасштаб: уместить по ширине без скролла, сохраняя квадрат
+// Автомасштаб: уместить по ширине без горизонтального скролла
 function computeCellSize(){
   const wrap = document.getElementById("gridWrap");
   const style = getComputedStyle(wrap);
   const paddingX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
-
-  // доступная ширина под таблицу
   const available = Math.floor(wrap.clientWidth - paddingX);
 
-  // учитываем толщину границ: каждая клетка имеет border с двух сторон,
-  // но в таблице соседние границы “делят” пиксели визуально — поэтому берём запас
+  // чтобы клетки оставались читабельны
   const minCell = 22;
   const maxCell = 36;
 
@@ -338,7 +381,8 @@ window.addEventListener("resize", computeCellSize);
 const clueDir = document.getElementById("clueDir");
 const clueText = document.getElementById("clueText");
 
-const cellToEntries = new Map();
+// карта клетка -> слова
+const cellToEntries = new Map(); // "r,c" -> [entry,...]
 function addCellEntry(r,c,entry){
   const key = `${r},${c}`;
   if(!cellToEntries.has(key)) cellToEntries.set(key, []);
@@ -359,7 +403,6 @@ let lastTapKey = null;
 function clearActiveHighlight(){
   for(const td of tdByKey.values()) td.classList.remove("active");
 }
-
 function highlightEntry(entry){
   const w = normalize(entry.answer);
   for(let i=0;i<w.length;i++){
@@ -369,7 +412,6 @@ function highlightEntry(entry){
     if(td) td.classList.add("active");
   }
 }
-
 function highlightGroup(groupId){
   clearActiveHighlight();
   for(const e of crossword.entries){
@@ -391,14 +433,29 @@ function pickEntryForCellKey(key){
   const list = cellToEntries.get(key) || [];
   if(list.length === 0) return null;
 
+  // повторный тап по той же клетке — переключаем направление на пересечении
   if(lastTapKey === key && list.length > 1 && activeEntry){
     const idx = list.findIndex(x => x === activeEntry);
     if(idx >= 0) return list[(idx + 1) % list.length];
     return list[1];
   }
 
+  // приоритет горизонтали
   const across = list.find(x => x.dir === "across");
   return across || list[0];
+}
+
+/* Фикс “скачков” iOS:
+   - просим фокус без автоскролла
+   - удерживаем начало кроссворда в зоне видимости
+*/
+function stableFocus(inp){
+  try { inp.focus({ preventScroll: true }); }
+  catch { inp.focus(); }
+
+  requestAnimationFrame(() => {
+    document.getElementById("gridWrap").scrollIntoView({ block: "start", behavior: "smooth" });
+  });
 }
 
 for(const [key, inp] of inputByKey.entries()){
@@ -406,13 +463,15 @@ for(const [key, inp] of inputByKey.entries()){
     lastTapKey = key;
     const entry = pickEntryForCellKey(key);
     if(entry) showClue(entry);
+    stableFocus(inp);
   };
+
   inp.addEventListener("focus", handler);
   inp.addEventListener("click", handler);
   inp.addEventListener("touchend", handler, {passive:true});
 }
 
-// check/clear
+// check / clear
 function getCellValueKey(key){
   const inp = inputByKey.get(key);
   return inp ? normalize(inp.value) : "";
