@@ -7,31 +7,30 @@
 
   <style>
     :root{
-      --cell: 30px;         /* базовый размер клетки (потом масштабируем) */
+      --cell: 30px;         /* базовый размер клетки (таблица потом масштабируется) */
       --border: 2px;
-      --kb: 0px;            /* высота клавиатуры (visualViewport) */
+      --kb: 0px;            /* высота клавиатуры */
       --scale: 1;           /* масштаб поля */
-      --clueH: 92px;        /* примерная высота подсказки */
-      --acc: 0px;
+      --clueH: 92px;        /* резерв под подсказку */
     }
 
-html, body{
-  height: 100%;
-  margin: 0;
-  background: #fff;
-  color: #111;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  -webkit-text-size-adjust: 100%;
-  overflow: hidden;
-}
+    html, body{
+      height: 100%;
+      margin: 0;
+      background: #fff;
+      color: #111;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      -webkit-text-size-adjust: 100%;
+      overflow: hidden;
+    }
 
-body{
-  position: fixed;
-  inset: 0;
-  width: 100%;
-}
+    /* фиксируем экран, чтобы iOS не пытался “подскроллить” к фокусу */
+    body{
+      position: fixed;
+      inset: 0;
+      width: 100%;
+    }
 
-    /* важное: svh — “стабильная” высота, не прыгает при адресной строке/клавиатуре */
     .screen{
       height: 100svh;
       display: flex;
@@ -86,7 +85,7 @@ body{
       display: flex;
       justify-content: center;
       align-items: flex-start;
-      padding: 6px 12px calc(var(--clueH) + 10px) 12px; /* резерв под подсказку */
+      padding: 6px 12px calc(var(--clueH) + 10px) 12px;
       box-sizing: border-box;
       overflow: hidden;
     }
@@ -102,15 +101,18 @@ body{
       position: relative;
     }
 
-    /* поле масштабируем, чтобы влезло в экран и клетки остались квадратными */
     .gridScaler{
       transform: scale(var(--scale));
       transform-origin: top center;
+      will-change: transform;
     }
 
     table{
       border-collapse: collapse;
       table-layout: fixed;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
     }
 
     td{
@@ -149,34 +151,36 @@ body{
     td.correct{
       background: #e8f0fe;
     }
-    td.correct input{
-      color: #1a73e8;
-      font-weight: 600;
-    }
 
-    input.cell{
+    .cellBtn{
       width: 100%;
       height: 100%;
+      display: grid;
+      place-items: center;
+      font-size: 16px;
+      line-height: 1;
+      text-transform: uppercase;
       border: 0;
-      outline: none;
+      background: transparent;
       padding: 0;
       margin: 0;
-      display: block;
-      box-sizing: border-box;
-      background: transparent;
-      text-transform: uppercase;
-      text-align: center;
-      font-size: 16px;           /* iOS не зумит */
-      line-height: var(--cell);
-      caret-color: #111;
+      cursor: pointer;
+      color: #111;
+      font-weight: 500;
+      touch-action: manipulation;
     }
 
-    /* подсказка фиксирована и поднимается над клавиатурой */
+    td.correct .cellBtn{
+      color: #1a73e8;
+      font-weight: 700;
+    }
+
+    /* подсказка */
     .cluebar{
       position: fixed;
       left: 0;
       right: 0;
-      bottom: calc(var(--kb) + var(--acc, 0px) + env(safe-area-inset-bottom));
+      bottom: calc(var(--kb) + env(safe-area-inset-bottom));
       background: #fff;
       border-top: 1px solid #ddd;
       padding: 10px 12px;
@@ -216,6 +220,21 @@ body{
       line-height: 1.25;
       color: #111;
     }
+
+    /* один скрытый инпут для набора */
+    #kbd{
+      position: fixed;
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+      border: 0;
+      padding: 0;
+      margin: 0;
+      font-size: 16px; /* важно для iOS (чтобы не зумил) */
+    }
   </style>
 </head>
 
@@ -247,6 +266,8 @@ body{
     </div>
   </div>
 
+  <input id="kbd" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+
 <script>
   const crossword = {
     width: 23,
@@ -257,27 +278,26 @@ body{
       { row: 14, col: 18 },  // между THE и STARS
     ],
     entries: [
-      { id: 101, dir:"across", row: 3,  col: 1,  answer:"PLAY",     clue:"Кнопка на пульте для включения фильма" },
-      { id: 102, dir:"down",   row: 2,  col: 1,  answer:"SPF",      clue:"То, чем Эльза запретила пользоваться Владу на Бали" },
-      { id: 103, dir:"down",   row: 2,  col: 3,  answer:"MADMEN",   clue:"Новый офисик" },
-      { id: 104, dir:"across", row: 5,  col: 3,  answer:"MAYFLOWER",clue:"Полное имя Рубика" },
-      { id: 105, dir:"across", row: 7,  col: 1,  answer:"VPN",      clue:"Платное изобретение Яши и бесплатное Песочка" },
-      { id: 106, dir:"down",   row: 7,  col: 1,  answer:"VIBURNUM", clue:"Другое название калины, не обзывательство (!), реальное название" },
+      { id: 101, dir:"across", row: 3,  col: 1,  answer:"PLAY",      clue:"Кнопка на пульте для включения фильма" },
+      { id: 102, dir:"down",   row: 2,  col: 1,  answer:"SPF",       clue:"То, чем Эльза запретила пользоваться Владу на Бали" },
+      { id: 103, dir:"down",   row: 2,  col: 3,  answer:"MADMEN",    clue:"Новый офисик" },
+      { id: 104, dir:"across", row: 5,  col: 3,  answer:"MAYFLOWER", clue:"Полное имя Рубика" },
+      { id: 105, dir:"across", row: 7,  col: 1,  answer:"VPN",       clue:"Платное изобретение Яши и бесплатное Песочка" },
+      { id: 106, dir:"down",   row: 7,  col: 1,  answer:"VIBURNUM",  clue:"Другое название калины, не обзывательство (!), реальное название" },
 
-      // фраза целиком: подсветка всей фразы как одного “слова”
-      { id: 201, dir:"across", row: 14, col: 1,  answer:"MESSAGES", group:"phrase",
-        clue:"Под эту песню красиво катаются на роликах" },
-      { id: 202, dir:"across", row: 14, col: 10, answer:"FROM",     group:"phrase",
-        clue:"Под эту песню красиво катаются на роликах" },
-      { id: 203, dir:"across", row: 14, col: 15, answer:"THE",      group:"phrase",
-        clue:"Под эту песню красиво катаются на роликах" },
-      { id: 204, dir:"across", row: 14, col: 19, answer:"STARS",    group:"phrase",
-        clue:"Под эту песню красиво катаются на роликах" },
+      { id: 201, dir:"across", row: 14, col: 1,  answer:"MESSAGES", group:"phrase", clue:"Под эту песню красиво катаются на роликах" },
+      { id: 202, dir:"across", row: 14, col: 10, answer:"FROM",     group:"phrase", clue:"Под эту песню красиво катаются на роликах" },
+      { id: 203, dir:"across", row: 14, col: 15, answer:"THE",      group:"phrase", clue:"Под эту песню красиво катаются на роликах" },
+      { id: 204, dir:"across", row: 14, col: 19, answer:"STARS",    group:"phrase", clue:"Под эту песню красиво катаются на роликах" },
     ]
   };
 
   const W = crossword.width;
   const H = crossword.height;
+
+  const kbd = document.getElementById("kbd");
+  const clueDir = document.getElementById("clueDir");
+  const clueText = document.getElementById("clueText");
 
   function normalize(s){ return (s||"").toString().trim().toUpperCase(); }
 
@@ -327,105 +347,12 @@ body{
   const colsVisible = (maxC - minC + 1);
   const rowsVisible = (maxR - minR + 1);
 
-  // render
-  const gridEl = document.getElementById("grid");
-  const table = document.createElement("table");
-
-  const inputByKey = new Map();
-  const tdByKey = new Map();
-
-  for(let r=minR;r<=maxR;r++){
-    const tr=document.createElement("tr");
-    for(let c=minC;c<=maxC;c++){
-      const td=document.createElement("td");
-      const key = `${r},${c}`;
-
-      if(!mask[r][c]){
-        td.className="block";
-      } else if(gapSet.has(key)){
-        td.className="gap";
-      } else {
-        td.className="fill";
-        const inp=document.createElement("input");
-        inp.className="cell";
-        inp.maxLength=1;
-        inp.inputMode="text";
-        inp.autocomplete="off";
-        inp.spellcheck=false;
-
-        inp.addEventListener("input", ()=>{
-          inp.value = normalize(inp.value).slice(0,1);
-        });
-
-        td.appendChild(inp);
-        inputByKey.set(key, inp);
-      }
-
-      tdByKey.set(key, td);
-      tr.appendChild(td);
-    }
-    table.appendChild(tr);
-  }
-  gridEl.appendChild(table);
-
-  // === стабильный масштаб (вписываем в экран, клетки квадратные) ===
-  function computeScale(){
-    const wrap = document.getElementById("gridWrap");
-    const availW = wrap.clientWidth;
-    const availH = wrap.clientHeight;
-
-    const cell = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell')) || 30;
-    const border = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--border')) || 2;
-
-    // грубо оцениваем размеры таблицы в пикселях
-    const gridW = colsVisible * cell + colsVisible * border;
-    const gridH = rowsVisible * cell + rowsVisible * border;
-
-    const s = Math.min(availW / gridW, availH / gridH, 1);
-    document.documentElement.style.setProperty("--scale", String(Math.max(0.2, s)));
-  }
-
-  // === клавиатура: двигаем только подсказку, поле не трогаем ===
-  function updateKeyboardOffset(){
-    const vv = window.visualViewport;
-    if(!vv){
-      document.documentElement.style.setProperty("--kb","0px");
-      return;
-    }
-    const bottomGap = Math.max(0, Math.round(window.innerHeight - (vv.height + vv.offsetTop)));
-    document.documentElement.style.setProperty("--kb", `${bottomGap}px`);
-  }
-
- function relayout(){
-  // при клавиатуре двигаем только подсказку
-  updateKeyboardOffset();
-}
-
-// один раз вписываем поле в экран
-computeScale();
-relayout();
-
-window.addEventListener("resize", () => {
-  computeScale();
-  relayout();
-});
-
-window.addEventListener("orientationchange", () => {
-  setTimeout(() => { computeScale(); relayout(); }, 150);
-});
-
-// visualViewport трогаем только чтобы поднимать/опускать подсказку,
-// без пересчета масштаба (иначе дергается поле)
-if(window.visualViewport){
-  window.visualViewport.addEventListener("resize", relayout);
-  window.visualViewport.addEventListener("scroll", relayout);
-}
-
-  // подсказки + выбор слов
-  const clueDir = document.getElementById("clueDir");
-  const clueText = document.getElementById("clueText");
-
+  // состояние букв
+  const valueByKey = new Map(); // key -> "A"
+  const tdByKey = new Map();    // key -> td
+  const btnByKey = new Map();   // key -> button
   const cellToEntries = new Map();
+
   function addCellEntry(r,c,entry){
     const key = `${r},${c}`;
     if(!cellToEntries.has(key)) cellToEntries.set(key, []);
@@ -441,12 +368,87 @@ if(window.visualViewport){
     }
   });
 
+  // render
+  const gridEl = document.getElementById("grid");
+  const table = document.createElement("table");
+
+  for(let r=minR;r<=maxR;r++){
+    const tr=document.createElement("tr");
+    for(let c=minC;c<=maxC;c++){
+      const td=document.createElement("td");
+      const key = `${r},${c}`;
+
+      if(!mask[r][c]){
+        td.className="block";
+      } else if(gapSet.has(key)){
+        td.className="gap";
+      } else {
+        td.className="fill";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "cellBtn";
+        btn.textContent = "";
+        td.appendChild(btn);
+        btnByKey.set(key, btn);
+        valueByKey.set(key, "");
+      }
+
+      tdByKey.set(key, td);
+      tr.appendChild(td);
+    }
+    table.appendChild(tr);
+  }
+  gridEl.appendChild(table);
+
+  // масштаб поля (вписать в доступную высоту без дерганий)
+  function computeScale(){
+    const wrap = document.getElementById("gridWrap");
+    const availW = wrap.clientWidth;
+    const availH = wrap.clientHeight;
+
+    const cell = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell')) || 30;
+    const border = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--border')) || 2;
+
+    const gridW = colsVisible * cell + colsVisible * border;
+    const gridH = rowsVisible * cell + rowsVisible * border;
+
+    const s = Math.min(availW / gridW, availH / gridH, 1);
+    document.documentElement.style.setProperty("--scale", String(Math.max(0.2, s)));
+  }
+
+  // клавиатура: двигаем только подсказку
+  function updateKeyboardOffset(){
+    const vv = window.visualViewport;
+    if(!vv){
+      document.documentElement.style.setProperty("--kb","0px");
+      return;
+    }
+    const bottomGap = Math.max(0, Math.round(window.innerHeight - (vv.height + vv.offsetTop)));
+    document.documentElement.style.setProperty("--kb", `${bottomGap}px`);
+  }
+
+  computeScale();
+  updateKeyboardOffset();
+
+  window.addEventListener("resize", () => { computeScale(); updateKeyboardOffset(); });
+  window.addEventListener("orientationchange", () => {
+    setTimeout(() => { computeScale(); updateKeyboardOffset(); }, 150);
+  });
+
+  if(window.visualViewport){
+    window.visualViewport.addEventListener("resize", updateKeyboardOffset);
+    window.visualViewport.addEventListener("scroll", updateKeyboardOffset);
+  }
+
+  // активное слово
   let activeEntry = null;
+  let activeKey = null;
   let lastTapKey = null;
 
   function clearActiveHighlight(){
     for(const td of tdByKey.values()) td.classList.remove("active");
   }
+
   function highlightEntry(entry){
     const w = normalize(entry.answer);
     for(let i=0;i<w.length;i++){
@@ -456,6 +458,7 @@ if(window.visualViewport){
       if(td) td.classList.add("active");
     }
   }
+
   function highlightGroup(groupId){
     clearActiveHighlight();
     for(const e of crossword.entries){
@@ -473,7 +476,6 @@ if(window.visualViewport){
     activeEntry = entry;
   }
 
-  // выбор слова по клетке: первый раз across, повторный тап — переключение (если есть второй вариант)
   function pickEntryForCellKey(key, forceToggle=false){
     const list = cellToEntries.get(key) || [];
     if(list.length === 0) return null;
@@ -488,12 +490,6 @@ if(window.visualViewport){
     return across || list[0];
   }
 
-  function focusNoJump(inp){
-    try { inp.focus({ preventScroll: true }); }
-    catch { inp.focus(); }
-  }
-
-  // путь для автоперехода
   function getPathCells(entry){
     const keys = [];
     const w = normalize(entry.answer);
@@ -508,7 +504,6 @@ if(window.visualViewport){
   function moveInActive(entry, currentKey, delta){
     if(!entry) return;
 
-    // если это фраза — двигаемся по всей фразе как по одному слову
     if(entry.group){
       const parts = crossword.entries
         .filter(e=>e.group===entry.group && e.dir===entry.dir)
@@ -519,8 +514,9 @@ if(window.visualViewport){
 
       const i = allKeys.indexOf(currentKey);
       const next = allKeys[i + delta];
-      if(next && inputByKey.get(next)){
-        focusNoJump(inputByKey.get(next));
+      if(next && btnByKey.get(next)){
+        activeKey = next;
+        return;
       }
       return;
     }
@@ -528,16 +524,21 @@ if(window.visualViewport){
     const keys = getPathCells(entry);
     const idx = keys.indexOf(currentKey);
     const next = keys[idx + delta];
-    if(next && inputByKey.get(next)){
-      focusNoJump(inputByKey.get(next));
+    if(next && btnByKey.get(next)){
+      activeKey = next;
     }
   }
 
-  // корректные слова “закрепляем”
+  function setCellChar(key, ch){
+    if(!btnByKey.has(key)) return;
+    valueByKey.set(key, ch);
+    btnByKey.get(key).textContent = ch;
+  }
+
   function updateCorrectMarks(){
     for(const td of tdByKey.values()) td.classList.remove("correct");
 
-    crossword.entries.forEach(e=>{
+    for(const e of crossword.entries){
       const w = normalize(e.answer);
       let ok = true;
 
@@ -545,9 +546,8 @@ if(window.visualViewport){
         const r = (e.row-1) + (e.dir==="down"? i : 0);
         const c = (e.col-1) + (e.dir==="across"? i : 0);
         const key = `${r},${c}`;
-        const inp = inputByKey.get(key);
-        if(!inp) continue;
-        if(normalize(inp.value) !== w[i]) ok = false;
+        if(!btnByKey.has(key)) continue;
+        if((valueByKey.get(key) || "") !== w[i]) ok = false;
       }
 
       if(ok){
@@ -558,64 +558,88 @@ if(window.visualViewport){
           if(td) td.classList.add("correct");
         }
       }
-    });
+    }
   }
 
-  // Важно: при авто-переходе фокуса не пере-выбираем слово на пересечениях
-  for(const [key, inp] of inputByKey.entries()){
-    function selectByTap(){
-      const toggle = (lastTapKey === key); // повторный тап по той же клетке = переключаем направление
+  function focusKeyboard(){
+    updateKeyboardOffset();
+    try { kbd.focus({ preventScroll: true }); }
+    catch { kbd.focus(); }
+  }
+
+  // обработка тапов по клеткам
+  for(const [key, btn] of btnByKey.entries()){
+    function onTap(){
+      const toggle = (lastTapKey === key);
       lastTapKey = key;
 
       const entry = pickEntryForCellKey(key, toggle);
       if(entry) showClue(entry);
-      focusNoJump(inp);
+
+      activeKey = key;
+      focusKeyboard();
     }
 
-    function onFocusOnly(){
-      // если фокус пришёл из автоперехода — не меняем activeEntry
-      if(!activeEntry) return;
-
-      const list = cellToEntries.get(key) || [];
-      const okSame = list.some(x => x === activeEntry);
-      const okGroup = activeEntry.group && list.some(x => x.group === activeEntry.group);
-
-      if(okSame || okGroup){
-        if(activeEntry.group) highlightGroup(activeEntry.group);
-        else { clearActiveHighlight(); highlightEntry(activeEntry); }
-      }
-    }
-
-    inp.addEventListener("click", selectByTap);
-    inp.addEventListener("touchend", selectByTap, {passive:true});
-    inp.addEventListener("focus", onFocusOnly);
-
-    inp.addEventListener("input", () => {
-      updateCorrectMarks();
-      const v = normalize(inp.value);
-      if(v && v.length === 1 && activeEntry){
-        moveInActive(activeEntry, key, +1);
-      }
-    });
-
-    inp.addEventListener("keydown", (e) => {
-      if(e.key === "Backspace"){
-        if(inp.value === "" && activeEntry){
-          e.preventDefault();
-          moveInActive(activeEntry, key, -1);
-        }
-      }
-    });
-
-    // при открытии клавиатуры подсказку поднимем
-    inp.addEventListener("focusin", () => { updateKeyboardOffset(); });
+    btn.addEventListener("click", onTap);
+    btn.addEventListener("touchend", (e) => { e.preventDefault(); onTap(); }, { passive:false });
   }
 
+  // ввод: один скрытый input
+  function handleChar(ch){
+    if(!activeEntry || !activeKey) return;
+
+    const up = normalize(ch).slice(0,1);
+    if(!up) return;
+
+    setCellChar(activeKey, up);
+    updateCorrectMarks();
+    moveInActive(activeEntry, activeKey, +1);
+  }
+
+  function handleBackspace(){
+    if(!activeEntry || !activeKey) return;
+
+    const cur = valueByKey.get(activeKey) || "";
+    if(cur){
+      setCellChar(activeKey, "");
+      updateCorrectMarks();
+      return;
+    }
+    moveInActive(activeEntry, activeKey, -1);
+    if(activeKey){
+      setCellChar(activeKey, "");
+      updateCorrectMarks();
+    }
+  }
+
+  kbd.addEventListener("input", () => {
+    const v = kbd.value || "";
+    if(v.length){
+      handleChar(v[v.length-1]);
+      kbd.value = "";
+    }
+  });
+
+  kbd.addEventListener("keydown", (e) => {
+    if(e.key === "Backspace"){
+      e.preventDefault();
+      handleBackspace();
+      kbd.value = "";
+    }
+    if(e.key && e.key.length === 1){
+      // на некоторых iOS keydown дает символ — поддержим
+      // но не дублируем, если потом придет input: обнуляем
+      setTimeout(() => { kbd.value = ""; }, 0);
+    }
+  });
+
+  // очистка
   function clearAll(){
-    for(const inp of inputByKey.values()) inp.value = "";
+    for(const key of valueByKey.keys()) setCellChar(key, "");
     updateCorrectMarks();
     clearActiveHighlight();
     activeEntry = null;
+    activeKey = null;
     lastTapKey = null;
     clueDir.textContent = "—";
     clueText.textContent = "Нажмите на слово";
