@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Кроссворд (EN)</title>
+  <title>Кроссворд</title>
   <style>
     :root{
-      --cell: clamp(28px, 7.6vw, 36px);
+      --cell: 34px;
       --border: 2px;
     }
 
@@ -15,13 +15,18 @@
       margin: 0;
       background: #fff;
       color: #111;
-      padding-bottom: 86px; /* место под нижнюю плашку */
     }
 
     .wrap{
       max-width: 980px;
       margin: 0 auto;
-      padding: 14px 12px 0;
+      padding: 14px 12px 18px;
+    }
+
+    .panel{
+      border: 1px solid #e6e6e6;
+      border-radius: 16px;
+      padding: 12px;
     }
 
     .title{
@@ -35,56 +40,49 @@
       margin: 0 0 12px;
     }
 
-    .panel{
-      border: 1px solid #e6e6e6;
-      border-radius: 16px;
-      padding: 12px;
-    }
-
+    /* важно: не ужимать клетки, а давать скролл */
     .gridWrap{
       overflow: auto;
       -webkit-overflow-scrolling: touch;
+      padding: 6px;
     }
 
     table{
       border-collapse: collapse;
-      background: transparent;
+      table-layout: fixed;       /* ключ к “ровным” квадратам */
     }
 
     td{
       width: var(--cell);
       height: var(--cell);
+      min-width: var(--cell);    /* не даём сжимать */
+      min-height: var(--cell);
       padding: 0;
       box-sizing: border-box;
       text-align: center;
       vertical-align: middle;
     }
 
-    /* пустые клетки вообще не рисуем (как на фото) */
     td.block{
       border: none !important;
       background: transparent !important;
     }
 
-    /* обычная клетка */
     td.fill{
       border: var(--border) solid #111;
       background: #fff;
-      position: relative;
     }
 
-    /* серый пробел между словами */
     td.gap{
       border: var(--border) solid #111;
       background: #d9d9d9;
     }
 
-    /* подсветка активного слова */
     td.active{
       background: #fff2b3;
     }
     td.active.gap{
-      background: #d9d9d9; /* gap не подсвечиваем */
+      background: #d9d9d9;
     }
 
     input.cell{
@@ -101,43 +99,18 @@
       text-transform: uppercase;
       text-align: center;
 
-      font-size: calc(var(--cell) * 0.48);
-      line-height: var(--cell);
+      font-size: 16px;
+      line-height: var(--cell);  /* фиксируем, чтобы iOS не “тянул” */
       caret-color: #111;
     }
 
-    .actions{
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 12px;
-    }
-
-    button{
-      border: 1px solid #ddd;
-      background: #fff;
-      cursor: pointer;
-      padding: 10px 12px;
-      border-radius: 12px;
-      font-size: 14px;
-    }
-
-    .msg{
-      font-size: 14px;
-      color: #111;
-      align-self: center;
-    }
-
-    /* Нижняя плашка подсказки */
+    /* Подсказка сразу под кроссвордом */
     .cluebar{
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      margin-top: 10px;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 10px 12px;
       background: #fff;
-      border-top: 1px solid #ddd;
-      padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
-      z-index: 9999;
     }
 
     .cluebar-top{
@@ -162,15 +135,57 @@
       line-height: 1.25;
       color: #111;
     }
+
+    .actions{
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    button{
+      border: 1px solid #ddd;
+      background: #fff;
+      cursor: pointer;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+    }
+
+    .msg{
+      font-size: 14px;
+      color: #111;
+      align-self: center;
+    }
+
+    /* Embed-режим: скрываем всё лишнее */
+    .embed .title,
+    .embed .note,
+    .embed .actions{
+      display: none;
+    }
+
+    /* Чуть меньше клетки на очень маленьких экранах */
+    @media (max-width: 390px){
+      :root{ --cell: 30px; }
+      input.cell{ font-size: 15px; }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="panel">
+    <div class="panel" id="panel">
       <div class="title">Кроссворд (EN)</div>
-      <div class="note">Серые клетки — пробелы между словами. Нажмите на слово, чтобы увидеть подсказку снизу.</div>
+      <div class="note">Серые клетки — пробелы между словами. Нажмите на слово, чтобы увидеть подсказку.</div>
 
       <div class="gridWrap" id="grid"></div>
+
+      <div id="clueBar" class="cluebar">
+        <div class="cluebar-top">
+          <span id="clueDir" class="cluechip">—</span>
+        </div>
+        <div id="clueText" class="cluebar-text">Нажмите на слово, чтобы увидеть подсказку</div>
+      </div>
 
       <div class="actions">
         <button id="checkBtn">Проверить</button>
@@ -180,30 +195,25 @@
     </div>
   </div>
 
-  <div id="clueBar" class="cluebar">
-    <div class="cluebar-top">
-      <span id="clueDir" class="cluechip">—</span>
-    </div>
-    <div id="clueText" class="cluebar-text">Нажмите на слово, чтобы увидеть подсказку</div>
-  </div>
-
 <script>
+/* embed режим:
+   - если ?embed=1
+   - или если страница открыта внутри iframe
+*/
+const params = new URLSearchParams(location.search);
+const isEmbed = params.get("embed") === "1" || (window.self !== window.top);
+if (isEmbed) document.getElementById("panel").classList.add("embed");
+
 /*
   Форма “как на фото”: компактная фигура без чёрного фона.
-  Цифры отключены.
-  Messages from the stars — разделяем серыми квадратами.
-  Тап по клетке:
-    - определяет текущее слово
-    - подсвечивает слово
-    - показывает подсказку внизу
-    - повторный тап по той же клетке на пересечении переключает направление
+  Messages from the stars — разделяем серыми клетками.
+  Важно: если нажимаешь на любую часть фразы — подсвечиваем всю фразу целиком.
 */
 
 const crossword = {
   width: 33,
   height: 13,
 
-  // Серые пробелы в фразе на одной строке (row 9)
   gaps: [
     { row: 9, col: 18 }, // после MESSAGES
     { row: 9, col: 23 }, // после FROM
@@ -217,15 +227,19 @@ const crossword = {
     { id: 3, dir:"down",   row: 2, col: 10, answer:"VIBURNUM",  clue:"Другое название калины (англ.)" },
     { id: 4, dir:"across", row: 2, col: 10, answer:"VPN",       clue:"Платное изобретение Яши и бесплатное Песочка" },
 
-    // Фраза внизу (разбита на 4 слова, одинаковая подсказка + (2)(3)(4) в тексте)
-    { id: 12,   dir:"across", row: 9, col: 10, answer:"MESSAGES", clue:"Название песни, под которую красиво катаются на роликах" },
-    { id: 1202, dir:"across", row: 9, col: 19, answer:"FROM",     clue:"Название песни, под которую красиво катаются на роликах (2)" },
-    { id: 1203, dir:"across", row: 9, col: 24, answer:"THE",      clue:"Название песни, под которую красиво катаются на роликах (3)" },
-    { id: 1204, dir:"across", row: 9, col: 28, answer:"STARS",    clue:"Название песни, под которую красиво катаются на роликах (4)" },
+    // Фраза: все части в одной группе phrase12
+    { id: 12,   dir:"across", row: 9, col: 10, answer:"MESSAGES", group:"phrase12",
+      clue:"Название песни, под которую красиво катаются на роликах" },
+    { id: 1202, dir:"across", row: 9, col: 19, answer:"FROM", group:"phrase12",
+      clue:"Название песни, под которую красиво катаются на роликах" },
+    { id: 1203, dir:"across", row: 9, col: 24, answer:"THE", group:"phrase12",
+      clue:"Название песни, под которую красиво катаются на роликах" },
+    { id: 1204, dir:"across", row: 9, col: 28, answer:"STARS", group:"phrase12",
+      clue:"Название песни, под которую красиво катаются на роликах" },
 
-    // Вертикальные пересечения с MESSAGES
-    { id: 5, dir:"down", row: 7, col: 14, answer:"PLAY", clue:"Кнопка на пульте для включения кино" }, // пересечение по A (MESSAGES)
-    { id: 6, dir:"down", row: 9, col: 12, answer:"SPF",  clue:"То, что Эльза не захотела покупать Владу" } // пересечение по S (MESSAGES)
+    // Вертикальные пересечения
+    { id: 5, dir:"down", row: 7, col: 14, answer:"PLAY", clue:"Кнопка на пульте для включения кино" },
+    { id: 6, dir:"down", row: 9, col: 12, answer:"SPF",  clue:"То, что Эльза не захотела покупать Владу" }
   ]
 };
 
@@ -241,7 +255,6 @@ function assertInBounds(r,c,label){
   if(r<0||r>=H||c<0||c>=W) throw new Error(`${label} выходит за границы ${W}x${H}`);
 }
 
-// gaps тоже “существуют”
 for(const key of gapSet){
   const [r,c]=key.split(",").map(Number);
   assertInBounds(r,c,"gap");
@@ -260,7 +273,7 @@ function placeWord(e){
 }
 crossword.entries.forEach(placeWord);
 
-// автокадрирование (убираем “лишнюю пустоту” вокруг фигуры)
+// автокадрирование
 let minR=H-1, maxR=0, minC=W-1, maxC=0;
 for(let r=0;r<H;r++){
   for(let c=0;c<W;c++){
@@ -278,11 +291,10 @@ minC = Math.max(0, minC-PAD);
 maxR = Math.min(H-1, maxR+PAD);
 maxC = Math.min(W-1, maxC+PAD);
 
-// Рендерим только кадр
+// render
 const gridEl = document.getElementById("grid");
 const table = document.createElement("table");
 
-// мапы по глобальным координатам
 const inputByKey = new Map(); // "r,c" -> input
 const tdByKey = new Map();    // "r,c" -> td
 
@@ -320,11 +332,11 @@ for(let r=minR;r<=maxR;r++){
 }
 gridEl.appendChild(table);
 
-// ===== Нижняя плашка подсказки + логика “активного слова”
+// clue bar
 const clueDir = document.getElementById("clueDir");
 const clueText = document.getElementById("clueText");
 
-// карта клетка -> какие слова через неё проходят
+// карта клетка -> слова
 const cellToEntries = new Map(); // "r,c" -> [entry,...]
 function addCellEntry(r,c,entry){
   const key = `${r},${c}`;
@@ -344,13 +356,10 @@ let activeEntry = null;
 let lastTapKey = null;
 
 function clearActiveHighlight(){
-  for(const [key, td] of tdByKey.entries()){
-    td.classList.remove("active");
-  }
+  for(const td of tdByKey.values()) td.classList.remove("active");
 }
 
 function highlightEntry(entry){
-  clearActiveHighlight();
   const w = normalize(entry.answer);
   for(let i=0;i<w.length;i++){
     const r = (entry.row-1) + (entry.dir==="down"? i : 0);
@@ -360,34 +369,50 @@ function highlightEntry(entry){
   }
 }
 
+function highlightGroup(groupId){
+  clearActiveHighlight();
+  for(const e of crossword.entries){
+    if(e.group === groupId){
+      highlightEntry(e);
+    }
+  }
+}
+
 function showClue(entry){
+  const dirRu = entry.dir === "across" ? "По горизонтали" : "По вертикали";
+  clueDir.textContent = dirRu;
+
+  // если это часть фразы — подсвечиваем всю фразу
+  if(entry.group){
+    clueText.textContent = entry.clue;
+    highlightGroup(entry.group);
+  } else {
+    clueText.textContent = entry.clue;
+    clearActiveHighlight();
+    highlightEntry(entry);
+  }
+
   activeEntry = entry;
-  clueDir.textContent = (entry.dir === "across") ? "По горизонтали" : "По вертикали";
-  clueText.textContent = entry.clue;
-  highlightEntry(entry);
 }
 
 function pickEntryForCellKey(key){
   const list = cellToEntries.get(key) || [];
   if(list.length === 0) return null;
 
-  // повторный тап по той же клетке: переключаем направление, если есть пересечение
+  // повторный тап по той же клетке: переключаем слово на пересечении
   if(lastTapKey === key && list.length > 1 && activeEntry){
     const idx = list.findIndex(x => x === activeEntry);
     if(idx >= 0) return list[(idx + 1) % list.length];
     return list[1];
   }
 
-  // иначе: приоритет горизонтали (ощущается “как в приложениях”)
+  // иначе: приоритет горизонтали
   const across = list.find(x => x.dir === "across");
   return across || list[0];
 }
 
-// Вешаем обработчик на все input
+// обработчики
 for(const [key, inp] of inputByKey.entries()){
-  const [rStr, cStr] = key.split(",");
-  const r = Number(rStr), c = Number(cStr);
-
   const handler = () => {
     lastTapKey = key;
     const entry = pickEntryForCellKey(key);
@@ -399,7 +424,7 @@ for(const [key, inp] of inputByKey.entries()){
   inp.addEventListener("touchend", handler, {passive:true});
 }
 
-// ===== Проверка / очистка
+// check / clear
 function getCellValueKey(key){
   const inp = inputByKey.get(key);
   return inp ? normalize(inp.value) : "";
@@ -407,20 +432,17 @@ function getCellValueKey(key){
 
 function check(){
   let ok=0, total=0;
-
   crossword.entries.forEach(e=>{
     const w = normalize(e.answer);
     for(let i=0;i<w.length;i++){
       const r = (e.row-1) + (e.dir==="down"? i : 0);
       const c = (e.col-1) + (e.dir==="across"? i : 0);
-      const key = `${r},${c}`;
       total++;
-      if(getCellValueKey(key) === w[i]) ok++;
+      if(getCellValueKey(`${r},${c}`) === w[i]) ok++;
     }
   });
-
-  const msg = document.getElementById("msg");
-  msg.textContent = (ok===total && total>0) ? "Готово! Всё верно 🎉" : `Верно: ${ok} из ${total} букв`;
+  document.getElementById("msg").textContent =
+    (ok===total && total>0) ? "Готово! Всё верно 🎉" : `Верно: ${ok} из ${total} букв`;
 }
 
 function clearAll(){
