@@ -195,6 +195,15 @@
       line-height: 1.25;
       color: #111;
     }
+    td.correct{
+  background: #e8f0fe;              /* нежно-голубая подложка */
+}
+td.correct input.cell{
+  color: #1a73e8;                    /* синие буквы */
+}
+td.correct.active{
+  background: #dbeafe;              /* если слово выбрано — чуть ярче */
+}
   </style>
 </head>
 <body>
@@ -267,6 +276,7 @@
   const gapSet = new Set((crossword.gaps||[]).map(g=>`${g.row-1},${g.col-1}`));
 
   const mask = Array.from({length:H}, ()=> Array.from({length:W}, ()=> false));
+  const LOCK_CORRECT = false; // true = после правильного слова блокируем клетки
 
   function assertInBounds(r,c,label){
     if(r<0||r>=H||c<0||c>=W) throw new Error(`${label} выходит за границы ${W}x${H}`);
@@ -417,7 +427,72 @@
       if(e.group === groupId) highlightEntry(e);
     }
   }
+function setCellCorrect(key, isCorrect){
+  const td = tdByKey.get(key);
+  const inp = inputByKey.get(key);
+  if(!td || !inp) return;
+  td.classList.toggle("correct", !!isCorrect);
+  if(LOCK_CORRECT) inp.disabled = !!isCorrect;
+}
 
+function keysForEntry(entry){
+  return getPathCells(entry); // у тебя уже есть getPathCells()
+}
+
+function keysForGroup(groupId){
+  const parts = crossword.entries
+    .filter(e => e.group === groupId && e.dir === "across")
+    .sort((a,b)=> (a.row-b.row) || (a.col-b.col));
+  const all = [];
+  for(const p of parts) all.push(...keysForEntry(p));
+  return all;
+}
+
+function isEntryFilledAndCorrect(entry){
+  const ans = normalize(entry.answer);
+  const keys = keysForEntry(entry);
+  for(let i=0;i<keys.length;i++){
+    if(getCellValueKey(keys[i]) !== ans[i]) return false;
+  }
+  return true;
+}
+
+function isGroupFilledAndCorrect(groupId){
+  const parts = crossword.entries
+    .filter(e => e.group === groupId && e.dir === "across")
+    .sort((a,b)=> (a.row-b.row) || (a.col-b.col));
+
+  // сравниваем каждую часть отдельно (MESSAGES / FROM / THE / STARS)
+  for(const p of parts){
+    if(!isEntryFilledAndCorrect(p)) return false;
+  }
+  return true;
+}
+
+function updateCorrectMarks(){
+  // сначала снимем "correct" со всех (и вернём disabled=false если LOCK_CORRECT)
+  for(const [key, inp] of inputByKey.entries()){
+    const td = tdByKey.get(key);
+    if(td) td.classList.remove("correct");
+    if(LOCK_CORRECT) inp.disabled = false;
+  }
+
+  // отметим правильные одиночные слова
+  for(const e of crossword.entries){
+    if(e.group) continue; // группу обработаем ниже
+    if(isEntryFilledAndCorrect(e)){
+      for(const key of keysForEntry(e)) setCellCorrect(key, true);
+    }
+  }
+
+  // отметим правильные группы-фразы
+  const groupIds = new Set(crossword.entries.filter(e=>e.group).map(e=>e.group));
+  for(const gid of groupIds){
+    if(isGroupFilledAndCorrect(gid)){
+      for(const key of keysForGroup(gid)) setCellCorrect(key, true);
+    }
+  }
+}
   function showClue(entry){
     clueDir.textContent = entry.dir === "across" ? "По горизонтали" : "По вертикали";
     clueText.textContent = entry.clue;
@@ -515,14 +590,14 @@
     inp.addEventListener("focus", onFocusOnly);
 
     // автопереход вперёд после ввода
-    inp.addEventListener("input", () => {
-      if(!activeEntry) return;
-      const v = normalize(inp.value);
-      if(v && v.length === 1){
-        moveInActive(activeEntry, key, +1);
-      }
-    });
-
+inp.addEventListener("input", () => {
+  if(!activeEntry) return;
+  const v = normalize(inp.value);
+  if(v && v.length === 1){
+    moveInActive(activeEntry, key, +1);
+  }
+  updateCorrectMarks();
+});
     // backspace: если пусто — шаг назад
     inp.addEventListener("keydown", (e) => {
       if(e.key === "Backspace"){
@@ -540,28 +615,30 @@
     return inp ? normalize(inp.value) : "";
   }
 
-  function check(){
-    let ok=0, total=0;
+ function check(){
+  let ok=0, total=0;
 
-    // считаем только буквенные клетки (без серых)
-    const seen = new Set();
-    crossword.entries.forEach(e=>{
-      const w = normalize(e.answer);
-      for(let i=0;i<w.length;i++){
-        const r = (e.row-1) + (e.dir==="down"? i : 0);
-        const c = (e.col-1) + (e.dir==="across"? i : 0);
-        const key = `${r},${c}`;
-        if(seen.has(key)) continue;
-        seen.add(key);
+  // считаем только буквенные клетки (без серых)
+  const seen = new Set();
+  crossword.entries.forEach(e=>{
+    const w = normalize(e.answer);
+    for(let i=0;i<w.length;i++){
+      const r = (e.row-1) + (e.dir==="down"? i : 0);
+      const c = (e.col-1) + (e.dir==="across"? i : 0);
+      const key = `${r},${c}`;
+      if(seen.has(key)) continue;
+      seen.add(key);
 
-        total++;
-        if(getCellValueKey(key) === w[i]) ok++;
-      }
-    });
+      total++;
+      if(getCellValueKey(key) === w[i]) ok++;
+    }
+  });
 
-    document.getElementById("msg").textContent =
-      (ok===total && total>0) ? "Готово! Всё верно 🎉" : `Верно: ${ok} из ${total} букв`;
-  }
+  document.getElementById("msg").textContent =
+    (ok===total && total>0) ? "Готово! Всё верно 🎉" : `Верно: ${ok} из ${total} букв`;
+
+  updateCorrectMarks(); // <-- добавь это
+}
 
   function clearAll(){
     for(const inp of inputByKey.values()) inp.value = "";
@@ -571,10 +648,12 @@
     lastTapKey = null;
     clueDir.textContent = "—";
     clueText.textContent = "Нажмите на слово, чтобы увидеть подсказку";
+    updateCorrectMarks();
   }
 
   document.getElementById("checkBtn").addEventListener("click", check);
   document.getElementById("clearBtn").addEventListener("click", clearAll);
+  updateCorrectMarks();
 </script>
 </body>
 </html>
