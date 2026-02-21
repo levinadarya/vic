@@ -2,115 +2,230 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Кроссворд (EN)</title>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; }
-    .wrap { max-width: 1100px; margin: 0 auto; }
-    .top { display: grid; gap: 12px; grid-template-columns: 1fr; }
-    .card { border: 1px solid #e5e5e5; border-radius: 16px; padding: 14px; }
-    .grid { display: inline-block; border: 1px solid #ddd; border-radius: 12px; padding: 10px; overflow: auto; }
-    table { border-collapse: collapse; }
-    td { width: 32px; height: 32px; border: 1px solid #ddd; text-align: center; vertical-align: middle; position: relative; }
-    td.block { background: #222; border-color: #222; }
-    td.gap  { background: #cfcfcf; border-color: #c0c0c0; }
-    .num { position: absolute; top: 2px; left: 4px; font-size: 10px; color: #444; user-select: none; }
+    :root{
+      --cell: clamp(28px, 7.6vw, 36px);
+      --border: 2px;
+    }
 
-    input.cell {
-      width: 100%; height: 100%;
-      border: 0; outline: none;
-      text-transform: uppercase;
-      text-align: center;
-      font-size: 15px;
+    body{
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      margin: 0;
+      background: #fff;
+      color: #111;
+      padding-bottom: 86px; /* место под нижнюю плашку */
+    }
+
+    .wrap{
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 14px 12px 0;
+    }
+
+    .title{
+      font-size: 26px;
+      line-height: 1.1;
+      margin: 4px 0 6px;
+    }
+    .note{
+      font-size: 13px;
+      color: #555;
+      margin: 0 0 12px;
+    }
+
+    .panel{
+      border: 1px solid #e6e6e6;
+      border-radius: 16px;
+      padding: 12px;
+    }
+
+    .gridWrap{
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table{
+      border-collapse: collapse;
       background: transparent;
     }
 
-    .clues { display: grid; gap: 12px; grid-template-columns: 1fr; }
-    .clues h3 { margin: 0 0 8px; font-size: 16px; }
-    .clues ol { margin: 0; padding-left: 18px; }
-    .clues li { margin: 6px 0; line-height: 1.25; }
-
-    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-    button {
-      border: 1px solid #ddd; background: #fff; cursor: pointer;
-      padding: 10px 12px; border-radius: 12px; font-size: 14px;
+    td{
+      width: var(--cell);
+      height: var(--cell);
+      padding: 0;
+      box-sizing: border-box;
+      text-align: center;
+      vertical-align: middle;
     }
-    .msg { font-size: 14px; color: #111; }
-    .note { font-size: 13px; color: #555; }
 
-    @media (min-width: 960px) {
-      .top { grid-template-columns: 1.15fr 0.85fr; align-items: start; }
-      .clues { grid-template-columns: 1fr 1fr; }
+    /* пустые клетки вообще не рисуем (как на фото) */
+    td.block{
+      border: none !important;
+      background: transparent !important;
+    }
+
+    /* обычная клетка */
+    td.fill{
+      border: var(--border) solid #111;
+      background: #fff;
+      position: relative;
+    }
+
+    /* серый пробел между словами */
+    td.gap{
+      border: var(--border) solid #111;
+      background: #d9d9d9;
+    }
+
+    /* подсветка активного слова */
+    td.active{
+      background: #fff2b3;
+    }
+    td.active.gap{
+      background: #d9d9d9; /* gap не подсвечиваем */
+    }
+
+    input.cell{
+      width: 100%;
+      height: 100%;
+      border: 0;
+      outline: none;
+      padding: 0;
+      margin: 0;
+      display: block;
+      box-sizing: border-box;
+
+      background: transparent;
+      text-transform: uppercase;
+      text-align: center;
+
+      font-size: calc(var(--cell) * 0.48);
+      line-height: var(--cell);
+      caret-color: #111;
+    }
+
+    .actions{
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    button{
+      border: 1px solid #ddd;
+      background: #fff;
+      cursor: pointer;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+    }
+
+    .msg{
+      font-size: 14px;
+      color: #111;
+      align-self: center;
+    }
+
+    /* Нижняя плашка подсказки */
+    .cluebar{
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #fff;
+      border-top: 1px solid #ddd;
+      padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+      z-index: 9999;
+    }
+
+    .cluebar-top{
+      display: flex;
+      gap: 8px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+
+    .cluechip{
+      display: inline-block;
+      border: 1px solid #ddd;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 12px;
+      color: #222;
+      background: #fff;
+    }
+
+    .cluebar-text{
+      font-size: 14px;
+      line-height: 1.25;
+      color: #111;
     }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="card">
-      <h2 style="margin:0 0 6px;">Кроссворд (EN)</h2>
-      <div class="note">Серые клетки — пробелы между словами. Вводите по одной букве.</div>
-    </div>
+    <div class="panel">
+      <div class="title">Кроссворд (EN)</div>
+      <div class="note">Серые клетки — пробелы между словами. Нажмите на слово, чтобы увидеть подсказку снизу.</div>
 
-    <div class="top" style="margin-top:12px;">
-      <div class="card">
-        <div class="grid" id="grid"></div>
+      <div class="gridWrap" id="grid"></div>
 
-        <div class="row" style="margin-top:12px;">
-          <button id="checkBtn">Проверить</button>
-          <button id="clearBtn">Очистить</button>
-          <div class="msg" id="msg"></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="clues">
-          <div>
-            <h3>По горизонтали</h3>
-            <ol id="across"></ol>
-          </div>
-          <div>
-            <h3>По вертикали</h3>
-            <ol id="down"></ol>
-          </div>
-        </div>
+      <div class="actions">
+        <button id="checkBtn">Проверить</button>
+        <button id="clearBtn">Очистить</button>
+        <div class="msg" id="msg"></div>
       </div>
     </div>
   </div>
 
+  <div id="clueBar" class="cluebar">
+    <div class="cluebar-top">
+      <span id="clueDir" class="cluechip">—</span>
+    </div>
+    <div id="clueText" class="cluebar-text">Нажмите на слово, чтобы увидеть подсказку</div>
+  </div>
+
 <script>
 /*
-  Компактный кроссворд с пересечениями + финальная фраза внизу:
-  MESSAGES [gap] FROM [gap] THE [gap] STARS
-  Координаты 1-based.
+  Форма “как на фото”: компактная фигура без чёрного фона.
+  Цифры отключены.
+  Messages from the stars — разделяем серыми квадратами.
+  Тап по клетке:
+    - определяет текущее слово
+    - подсвечивает слово
+    - показывает подсказку внизу
+    - повторный тап по той же клетке на пересечении переключает направление
 */
 
 const crossword = {
   width: 33,
   height: 13,
 
-  // серые пробелы в строке с фразой (row 9)
+  // Серые пробелы в фразе на одной строке (row 9)
   gaps: [
-    { row: 9, col: 18 }, // после MESSAGES (col10-17)
-    { row: 9, col: 23 }, // после FROM (col19-22)
-    { row: 9, col: 27 }, // после THE (col24-26)
+    { row: 9, col: 18 }, // после MESSAGES
+    { row: 9, col: 23 }, // после FROM
+    { row: 9, col: 27 }, // после THE
   ],
 
   entries: [
-    // Горизонтально (как твой пример)
-    { id: 1,  dir:"across", row: 6, col: 2,  answer:"MAYFLOWER", clue:"Полное имя Рубика" },
-    { id: 4,  dir:"across", row: 2, col: 10, answer:"VPN",       clue:"Платное изобретение Яши и бесплатное Песочка" },
+    // “каркас” как на фото
+    { id: 1, dir:"across", row: 6, col: 2,  answer:"MAYFLOWER", clue:"Полное имя Рубика" },
+    { id: 2, dir:"down",   row: 6, col: 2,  answer:"MADMEN",    clue:"Новый офисик" },
+    { id: 3, dir:"down",   row: 2, col: 10, answer:"VIBURNUM",  clue:"Другое название калины (англ.)" },
+    { id: 4, dir:"across", row: 2, col: 10, answer:"VPN",       clue:"Платное изобретение Яши и бесплатное Песочка" },
 
-    // Финальная фраза — 4 части на одной строке + одинаковая подсказка
-    { id: 12,    label:"12",     dir:"across", row: 9, col: 10, answer:"MESSAGES", clue:"Название песни, под которую красиво катаются на роликах" },
-    { id: 1202,  label:"12 (2)", dir:"across", row: 9, col: 19, answer:"FROM",     clue:"Название песни, под которую красиво катаются на роликах" },
-    { id: 1203,  label:"12 (3)", dir:"across", row: 9, col: 24, answer:"THE",      clue:"Название песни, под которую красиво катаются на роликах" },
-    { id: 1204,  label:"12 (4)", dir:"across", row: 9, col: 28, answer:"STARS",    clue:"Название песни, под которую красиво катаются на роликах" },
+    // Фраза внизу (разбита на 4 слова, одинаковая подсказка + (2)(3)(4) в тексте)
+    { id: 12,   dir:"across", row: 9, col: 10, answer:"MESSAGES", clue:"Название песни, под которую красиво катаются на роликах" },
+    { id: 1202, dir:"across", row: 9, col: 19, answer:"FROM",     clue:"Название песни, под которую красиво катаются на роликах (2)" },
+    { id: 1203, dir:"across", row: 9, col: 24, answer:"THE",      clue:"Название песни, под которую красиво катаются на роликах (3)" },
+    { id: 1204, dir:"across", row: 9, col: 28, answer:"STARS",    clue:"Название песни, под которую красиво катаются на роликах (4)" },
 
-    // Вертикально (пересекается с нижней строкой как в примере)
-    { id: 6, dir:"down",  row: 6, col: 2,  answer:"MADMEN",   clue:"Новый офисик" },          // M на пересечении с MAYFLOWER
-    { id: 7, dir:"down",  row: 2, col: 10, answer:"VIBURNUM", clue:"Другое название калины (англ.)" }, // V пересекает VPN, M пересекает MESSAGES
-    { id: 3, dir:"down",  row: 7, col: 14, answer:"PLAY",     clue:"Кнопка на пульте для включения кино" }, // A пересекает MESSAGES
-    { id: 2, dir:"down",  row: 9, col: 12, answer:"SPF",      clue:"То, что Эльза не захотела покупать Владу" } // S пересекает MESSAGES
+    // Вертикальные пересечения с MESSAGES
+    { id: 5, dir:"down", row: 7, col: 14, answer:"PLAY", clue:"Кнопка на пульте для включения кино" }, // пересечение по A (MESSAGES)
+    { id: 6, dir:"down", row: 9, col: 12, answer:"SPF",  clue:"То, что Эльза не захотела покупать Владу" } // пересечение по S (MESSAGES)
   ]
 };
 
@@ -126,7 +241,7 @@ function assertInBounds(r,c,label){
   if(r<0||r>=H||c<0||c>=W) throw new Error(`${label} выходит за границы ${W}x${H}`);
 }
 
-// gaps тоже “живые” клетки
+// gaps тоже “существуют”
 for(const key of gapSet){
   const [r,c]=key.split(",").map(Number);
   assertInBounds(r,c,"gap");
@@ -143,10 +258,9 @@ function placeWord(e){
     mask[r][c]=true;
   }
 }
-
 crossword.entries.forEach(placeWord);
 
-// --- автокадрирование (чтобы не было огромного чёрного поля)
+// автокадрирование (убираем “лишнюю пустоту” вокруг фигуры)
 let minR=H-1, maxR=0, minC=W-1, maxC=0;
 for(let r=0;r<H;r++){
   for(let c=0;c<W;c++){
@@ -158,53 +272,32 @@ for(let r=0;r<H;r++){
     }
   }
 }
-// поля по краям
 const PAD = 1;
 minR = Math.max(0, minR-PAD);
 minC = Math.max(0, minC-PAD);
 maxR = Math.min(H-1, maxR+PAD);
 maxC = Math.min(W-1, maxC+PAD);
 
-// --- номера (как в кроссвордах)
-const starts = new Map(); // "r,c" => number
-let num = 1;
-function isFill(r,c){ return r>=0&&r<H&&c>=0&&c<W && mask[r][c] && !gapSet.has(`${r},${c}`); }
-for(let r=minR;r<=maxR;r++){
-  for(let c=minC;c<=maxC;c++){
-    if(!isFill(r,c)) continue;
-    const leftBlocked = !isFill(r, c-1);
-    const upBlocked   = !isFill(r-1, c);
-    const hasAcrossStart = leftBlocked && isFill(r, c+1);
-    const hasDownStart   = upBlocked && isFill(r+1, c);
-    if(hasAcrossStart || hasDownStart){
-      starts.set(`${r},${c}`, num++);
-    }
-  }
-}
-
-// --- render
+// Рендерим только кадр
 const gridEl = document.getElementById("grid");
 const table = document.createElement("table");
-const inputs = Array.from({length:H}, ()=> Array.from({length:W}, ()=> null));
+
+// мапы по глобальным координатам
+const inputByKey = new Map(); // "r,c" -> input
+const tdByKey = new Map();    // "r,c" -> td
 
 for(let r=minR;r<=maxR;r++){
   const tr=document.createElement("tr");
   for(let c=minC;c<=maxC;c++){
     const td=document.createElement("td");
+    const key = `${r},${c}`;
 
     if(!mask[r][c]){
       td.className="block";
-    } else if(gapSet.has(`${r},${c}`)){
+    } else if(gapSet.has(key)){
       td.className="gap";
     } else {
-      const key = `${r},${c}`;
-      if(starts.has(key)){
-        const d = document.createElement("div");
-        d.className = "num";
-        d.textContent = String(starts.get(key));
-        td.appendChild(d);
-      }
-
+      td.className="fill";
       const inp=document.createElement("input");
       inp.className="cell";
       inp.maxLength=1;
@@ -213,59 +306,133 @@ for(let r=minR;r<=maxR;r++){
       inp.spellcheck=false;
 
       inp.addEventListener("input", ()=>{
-        inp.value=normalize(inp.value).slice(0,1);
-        const next=findNext(r,c);
-        if(inp.value && next) next.focus();
+        inp.value = normalize(inp.value).slice(0,1);
       });
 
-      inputs[r][c]=inp;
       td.appendChild(inp);
+      inputByKey.set(key, inp);
     }
+
+    tdByKey.set(key, td);
     tr.appendChild(td);
   }
   table.appendChild(tr);
 }
 gridEl.appendChild(table);
 
-function findNext(r,c){
-  for(let cc=c+1;cc<=maxC;cc++) if(inputs[r][cc]) return inputs[r][cc];
-  for(let rr=r+1;rr<=maxR;rr++) for(let cc=minC;cc<=maxC;cc++) if(inputs[rr][cc]) return inputs[rr][cc];
-  return null;
+// ===== Нижняя плашка подсказки + логика “активного слова”
+const clueDir = document.getElementById("clueDir");
+const clueText = document.getElementById("clueText");
+
+// карта клетка -> какие слова через неё проходят
+const cellToEntries = new Map(); // "r,c" -> [entry,...]
+function addCellEntry(r,c,entry){
+  const key = `${r},${c}`;
+  if(!cellToEntries.has(key)) cellToEntries.set(key, []);
+  cellToEntries.get(key).push(entry);
 }
-
-// --- clues
-const acrossOl=document.getElementById("across");
-const downOl=document.getElementById("down");
-function label(e){ return e.label ? e.label : String(e.id); }
-
-crossword.entries.slice().sort((a,b)=>a.id-b.id).forEach(e=>{
-  const li=document.createElement("li");
-  li.textContent = `${label(e)}. ${e.clue} (${normalize(e.answer).length})`;
-  (e.dir==="across"?acrossOl:downOl).appendChild(li);
+crossword.entries.forEach(e=>{
+  const w = normalize(e.answer);
+  for(let i=0;i<w.length;i++){
+    const r = (e.row-1) + (e.dir==="down"? i : 0);
+    const c = (e.col-1) + (e.dir==="across"? i : 0);
+    addCellEntry(r,c,e);
+  }
 });
 
-// --- check / clear
-function getCellValue(r,c){ const inp=inputs[r][c]; return inp?normalize(inp.value):""; }
+let activeEntry = null;
+let lastTapKey = null;
+
+function clearActiveHighlight(){
+  for(const [key, td] of tdByKey.entries()){
+    td.classList.remove("active");
+  }
+}
+
+function highlightEntry(entry){
+  clearActiveHighlight();
+  const w = normalize(entry.answer);
+  for(let i=0;i<w.length;i++){
+    const r = (entry.row-1) + (entry.dir==="down"? i : 0);
+    const c = (entry.col-1) + (entry.dir==="across"? i : 0);
+    const td = tdByKey.get(`${r},${c}`);
+    if(td) td.classList.add("active");
+  }
+}
+
+function showClue(entry){
+  activeEntry = entry;
+  clueDir.textContent = (entry.dir === "across") ? "По горизонтали" : "По вертикали";
+  clueText.textContent = entry.clue;
+  highlightEntry(entry);
+}
+
+function pickEntryForCellKey(key){
+  const list = cellToEntries.get(key) || [];
+  if(list.length === 0) return null;
+
+  // повторный тап по той же клетке: переключаем направление, если есть пересечение
+  if(lastTapKey === key && list.length > 1 && activeEntry){
+    const idx = list.findIndex(x => x === activeEntry);
+    if(idx >= 0) return list[(idx + 1) % list.length];
+    return list[1];
+  }
+
+  // иначе: приоритет горизонтали (ощущается “как в приложениях”)
+  const across = list.find(x => x.dir === "across");
+  return across || list[0];
+}
+
+// Вешаем обработчик на все input
+for(const [key, inp] of inputByKey.entries()){
+  const [rStr, cStr] = key.split(",");
+  const r = Number(rStr), c = Number(cStr);
+
+  const handler = () => {
+    lastTapKey = key;
+    const entry = pickEntryForCellKey(key);
+    if(entry) showClue(entry);
+  };
+
+  inp.addEventListener("focus", handler);
+  inp.addEventListener("click", handler);
+  inp.addEventListener("touchend", handler, {passive:true});
+}
+
+// ===== Проверка / очистка
+function getCellValueKey(key){
+  const inp = inputByKey.get(key);
+  return inp ? normalize(inp.value) : "";
+}
 
 function check(){
-  let ok=0,total=0;
+  let ok=0, total=0;
+
   crossword.entries.forEach(e=>{
-    const w=normalize(e.answer);
+    const w = normalize(e.answer);
     for(let i=0;i<w.length;i++){
-      const r=(e.row-1)+(e.dir==="down"?i:0);
-      const c=(e.col-1)+(e.dir==="across"?i:0);
+      const r = (e.row-1) + (e.dir==="down"? i : 0);
+      const c = (e.col-1) + (e.dir==="across"? i : 0);
+      const key = `${r},${c}`;
       total++;
-      if(getCellValue(r,c)===w[i]) ok++;
+      if(getCellValueKey(key) === w[i]) ok++;
     }
   });
-  const msg=document.getElementById("msg");
+
+  const msg = document.getElementById("msg");
   msg.textContent = (ok===total && total>0) ? "Готово! Всё верно 🎉" : `Верно: ${ok} из ${total} букв`;
 }
 
 function clearAll(){
-  for(let r=minR;r<=maxR;r++) for(let c=minC;c<=maxC;c++) if(inputs[r][c]) inputs[r][c].value="";
-  document.getElementById("msg").textContent="";
+  for(const inp of inputByKey.values()) inp.value = "";
+  document.getElementById("msg").textContent = "";
+  clearActiveHighlight();
+  activeEntry = null;
+  lastTapKey = null;
+  clueDir.textContent = "—";
+  clueText.textContent = "Нажмите на слово, чтобы увидеть подсказку";
 }
+
 document.getElementById("checkBtn").addEventListener("click", check);
 document.getElementById("clearBtn").addEventListener("click", clearAll);
 </script>
