@@ -512,19 +512,32 @@ const clueText2 = document.getElementById("clueText2");
 clueText2.textContent = clueText.textContent;
   }
 
-  function pickEntryForCellKey(key){
-    const list = cellToEntries.get(key) || [];
-    if(list.length === 0) return null;
+ function pickEntryForCellKey(key){
+  const list = cellToEntries.get(key) || [];
+  if(list.length === 0) return null;
 
-    if(lastTapKey === key && list.length > 1 && activeEntry){
-      const idx = list.findIndex(x => x === activeEntry);
-      if(idx >= 0) return list[(idx + 1) % list.length];
-      return list[1];
+  // если активное слово уже есть и оно включает эту клетку — остаёмся на нём
+  if(activeEntry){
+    const keep = list.find(x => x === activeEntry);
+    if(keep) return keep;
+
+    // если activeEntry часть группы (MESSAGES/FROM/THE/STARS) — держим группу
+    if(activeEntry.group){
+      const keepGroup = list.find(x => x.group && x.group === activeEntry.group);
+      if(keepGroup) return keepGroup;
     }
-
-    const across = list.find(x => x.dir === "across");
-    return across || list[0];
   }
+
+  // переключение только по повторному тапу в ту же клетку
+  if(lastTapKey === key && list.length > 1){
+    const idx = activeEntry ? list.findIndex(x => x === activeEntry) : -1;
+    return list[(idx + 1 + list.length) % list.length];
+  }
+
+  // по умолчанию выбираем across, если есть
+  const across = list.find(x => x.dir === "across");
+  return across || list[0];
+}
 
   function focusNoJump(inp){
     try { inp.focus({ preventScroll: true }); }
@@ -575,16 +588,31 @@ clueText2.textContent = clueText.textContent;
   }
 
   for(const [key, inp] of inputByKey.entries()){
-    const selectHandler = () => {
-      lastTapKey = key;
-      const entry = pickEntryForCellKey(key);
-      if(entry) showClue(entry);
-      focusNoJump(inp);
-    };
+    function selectByTap(){
+  lastTapKey = key;
+  const entry = pickEntryForCellKey(key);
+  if(entry) showClue(entry);
+  focusNoJump(inp);
+}
 
-    inp.addEventListener("click", selectHandler);
-    inp.addEventListener("focus", selectHandler);
-    inp.addEventListener("touchend", selectHandler, {passive:true});
+function onFocusOnly(){
+  // при авто-переходе фокуса не переключаем слово
+  if(!activeEntry) return;
+  const list = cellToEntries.get(key) || [];
+
+  const okSame = list.some(x => x === activeEntry);
+  const okGroup = activeEntry.group && list.some(x => x.group === activeEntry.group);
+
+  if(okSame || okGroup){
+    // просто подсветим текущее слово/группу
+    if(activeEntry.group) highlightGroup(activeEntry.group);
+    else { clearActiveHighlight(); highlightEntry(activeEntry); }
+  }
+}
+
+inp.addEventListener("click", selectByTap);
+inp.addEventListener("touchend", selectByTap, {passive:true});
+inp.addEventListener("focus", onFocusOnly);
 
     // автопереход вперёд после ввода
     inp.addEventListener("input", () => {
