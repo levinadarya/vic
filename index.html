@@ -6,33 +6,28 @@
   <title>Кроссворд</title>
   <style>
     :root{
-      --cell: 32px;      /* пересчитывается JS */
+      --cell: 28px;     /* пересчитывается JS */
       --border: 2px;
-      --clueH: 86px;     /* высота плашки (примерно) */
-      --kb: 0px;         /* высота клавиатуры (через visualViewport) */
+      --kb: 0px;        /* высота клавиатуры */
     }
 
-    html, body{
-      height: 100%;
-    }
+    html, body{ height: 100%; }
 
     body{
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       margin: 0;
       background: #fff;
       color: #111;
-      overflow: hidden;               /* как в приложении: страница не скроллится */
+      overflow: hidden; /* как в приложении */
       -webkit-text-size-adjust: 100%;
     }
 
-    /* Основной экран */
     .screen{
       height: 100%;
       display: flex;
       flex-direction: column;
     }
 
-    /* Шапка (можно скрывать в embed) */
     .top{
       padding: 14px 12px 0;
       max-width: 980px;
@@ -60,15 +55,37 @@
       margin: 0 0 12px;
     }
 
-    /* Игровая область: занимает всё, что осталось, минус плашка и клавиатура */
+    .actions{
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    button{
+      border: 1px solid #ddd;
+      background: #fff;
+      cursor: pointer;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+    }
+
+    .msg{
+      font-size: 14px;
+      color: #111;
+      align-self: center;
+    }
+
+    /* Игровая область: занимает весь экран, а снизу резерв под плашку + клавиатуру */
     .gameArea{
       flex: 1;
       display: flex;
       justify-content: center;
       align-items: flex-start;
-      padding: 10px 12px calc(var(--clueH) + var(--kb) + 10px) 12px;
+      padding: 10px 12px calc(110px + var(--kb) + env(safe-area-inset-bottom)) 12px;
       box-sizing: border-box;
-      overflow: hidden; /* никаких прокруток */
+      overflow: hidden;
     }
 
     .gridWrap{
@@ -76,6 +93,14 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    #grid{
+      width: 100%;
+      height: 100%;
       display: flex;
       justify-content: center;
       align-items: flex-start;
@@ -133,7 +158,7 @@
       text-transform: uppercase;
       text-align: center;
 
-      font-size: 16px;              /* iOS: не зумит */
+      font-size: 16px;          /* iOS не зумит */
       line-height: var(--cell);
       caret-color: #111;
     }
@@ -183,37 +208,10 @@
       color: #111;
     }
 
-    .actions{
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 10px;
-    }
-
-    button{
-      border: 1px solid #ddd;
-      background: #fff;
-      cursor: pointer;
-      padding: 10px 12px;
-      border-radius: 12px;
-      font-size: 14px;
-    }
-
-    .msg{
-      font-size: 14px;
-      color: #111;
-      align-self: center;
-    }
-
-    /* Embed-режим: убираем заголовок/подсказку/кнопки, остаётся только сетка + плашка */
     .embed .title,
     .embed .note,
     .embed .actions{
       display: none;
-    }
-
-    @media (max-width: 390px){
-      .title{ font-size: 22px; }
     }
   </style>
 </head>
@@ -249,7 +247,6 @@
   </div>
 
 <script>
-  // embed режим: ?embed=1 или iframe
   const params = new URLSearchParams(location.search);
   const isEmbed = params.get("embed") === "1" || (window.self !== window.top);
   if (isEmbed) document.getElementById("panel").classList.add("embed");
@@ -331,8 +328,9 @@
   maxC = Math.min(W-1, maxC+PAD);
 
   const colsVisible = (maxC - minC + 1);
+  const rowsVisible = (maxR - minR + 1);
 
-  // рендер
+  // render
   const gridEl = document.getElementById("grid");
   const table = document.createElement("table");
 
@@ -373,40 +371,50 @@
   }
   gridEl.appendChild(table);
 
-  // подгоняем клетки по ширине экрана без прокрутки
+  // Подбор размера клетки по ширине И по высоте (чтобы не обрезалось)
   function computeCellSize(){
     const wrap = document.getElementById("gridWrap");
-    const available = Math.floor(wrap.clientWidth); // gridWrap уже без паддингов
-    const minCell = 22;
-    const maxCell = 36;
-    let cell = Math.floor(available / colsVisible);
-    cell = Math.max(minCell, Math.min(maxCell, cell));
+    const availableW = Math.floor(wrap.clientWidth);
+
+    // доступная высота = высота игровой зоны (gridWrap) минус небольшой запас
+    const availableH = Math.floor(wrap.clientHeight);
+
+    // по ширине
+    const cellW = Math.floor(availableW / colsVisible);
+    // по высоте
+    const cellH = Math.floor(availableH / rowsVisible);
+
+    // берём минимум, чтобы точно влезло
+    let cell = Math.min(cellW, cellH);
+
+    // адекватные границы
+    cell = Math.max(18, Math.min(36, cell));
+
     document.documentElement.style.setProperty("--cell", `${cell}px`);
   }
 
-  // поднимаем плашку над клавиатурой (iOS/Android)
+  // Клавиатура через visualViewport
   function updateKeyboardOffset(){
     const vv = window.visualViewport;
     if(!vv){
       document.documentElement.style.setProperty("--kb", "0px");
       return;
     }
-    // высота клавиатуры примерно = innerHeight - visualViewport.height
     const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
     document.documentElement.style.setProperty("--kb", `${kb}px`);
   }
 
-  computeCellSize();
-  updateKeyboardOffset();
-
-  window.addEventListener("resize", () => {
-    computeCellSize();
+  function relayout(){
     updateKeyboardOffset();
-  });
+    // после обновления padding снизу — пересчитать cell
+    requestAnimationFrame(computeCellSize);
+  }
 
+  relayout();
+  window.addEventListener("resize", relayout);
   if(window.visualViewport){
-    window.visualViewport.addEventListener("resize", updateKeyboardOffset);
-    window.visualViewport.addEventListener("scroll", updateKeyboardOffset);
+    window.visualViewport.addEventListener("resize", relayout);
+    window.visualViewport.addEventListener("scroll", relayout);
   }
 
   // подсказки
@@ -475,22 +483,89 @@
     return across || list[0];
   }
 
-  // фокус без автоскролла (без любых scrollIntoView)
   function focusNoJump(inp){
     try { inp.focus({ preventScroll: true }); }
     catch { inp.focus(); }
   }
 
+  // ===== Автопереход по клеткам как в приложениях =====
+  function getPathCells(entry){
+    // возвращает список ключей клеток слова, пропуская gap (у нас gap внутри слова не бывает)
+    const keys = [];
+    const w = normalize(entry.answer);
+    for(let i=0;i<w.length;i++){
+      const r = (entry.row-1) + (entry.dir==="down"? i : 0);
+      const c = (entry.col-1) + (entry.dir==="across"? i : 0);
+      const key = `${r},${c}`;
+      keys.push(key);
+    }
+    return keys;
+  }
+
+  function getActiveKeyIndex(entry, currentKey){
+    const keys = getPathCells(entry);
+    return { keys, idx: keys.indexOf(currentKey) };
+  }
+
+  function moveInActive(entry, currentKey, delta){
+    if(!entry) return;
+    // если группа (фраза) — двигаемся по всей группе слева направо (как одно слово)
+    if(entry.group){
+      const parts = crossword.entries.filter(e=>e.group===entry.group && e.dir===entry.dir)
+        .sort((a,b)=> (a.row-b.row) || (a.col-b.col));
+      const allKeys = [];
+      for(const p of parts) allKeys.push(...getPathCells(p));
+
+      const i = allKeys.indexOf(currentKey);
+      const next = allKeys[i + delta];
+      if(next && inputByKey.get(next)){
+        focusNoJump(inputByKey.get(next));
+      }
+      return;
+    }
+
+    const {keys, idx} = getActiveKeyIndex(entry, currentKey);
+    const next = keys[idx + delta];
+    if(next && inputByKey.get(next)){
+      focusNoJump(inputByKey.get(next));
+    }
+  }
+
   for(const [key, inp] of inputByKey.entries()){
-    const handler = () => {
+    const selectHandler = () => {
       lastTapKey = key;
       const entry = pickEntryForCellKey(key);
       if(entry) showClue(entry);
       focusNoJump(inp);
     };
-    inp.addEventListener("click", handler);
-    inp.addEventListener("focus", handler);
-    inp.addEventListener("touchend", handler, {passive:true});
+
+    inp.addEventListener("click", selectHandler);
+    inp.addEventListener("focus", selectHandler);
+    inp.addEventListener("touchend", selectHandler, {passive:true});
+
+    // автопереход вперёд после ввода
+    inp.addEventListener("input", () => {
+      if(!activeEntry) return;
+      const v = normalize(inp.value);
+      if(v && v.length === 1){
+        moveInActive(activeEntry, key, +1);
+      }
+    });
+
+    // backspace: если пусто — шаг назад; если не пусто — просто очистится
+    inp.addEventListener("keydown", (e) => {
+      if(e.key === "Backspace"){
+        if(inp.value === "" && activeEntry){
+          e.preventDefault();
+          moveInActive(activeEntry, key, -1);
+        }
+      }
+      // стрелочки (для удобства на десктопе)
+      if(e.key === "ArrowRight" && activeEntry){ e.preventDefault(); moveInActive(activeEntry, key, +1); }
+      if(e.key === "ArrowLeft"  && activeEntry){ e.preventDefault(); moveInActive(activeEntry, key, -1); }
+      if(e.key === "ArrowDown"  && activeEntry){ e.preventDefault(); moveInActive(activeEntry, key, +1); }
+      if(e.key === "ArrowUp"    && activeEntry){ e.preventDefault(); moveInActive(activeEntry, key, -1); }
+    });
   }
 
   // check/clear
