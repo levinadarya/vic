@@ -12,6 +12,7 @@
       --kb: 0px;            /* высота клавиатуры (visualViewport) */
       --scale: 1;           /* масштаб поля */
       --clueH: 92px;        /* примерная высота подсказки */
+      --acc: 0px;
     }
 
     html, body{
@@ -169,7 +170,7 @@
       position: fixed;
       left: 0;
       right: 0;
-      bottom: calc(var(--kb) + env(safe-area-inset-bottom));
+      bottom: calc(var(--kb) + var(--acc, 0px) + env(safe-area-inset-bottom));
       background: #fff;
       border-top: 1px solid #ddd;
       padding: 10px 12px;
