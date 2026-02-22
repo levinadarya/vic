@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Crossword 2</title>
+  <title>Crossword</title>
 
   <style>
     :root{
@@ -12,6 +12,7 @@
       --kb: 0px;            /* высота клавиатуры */
       --scale: 1;           /* масштаб поля */
       --clueH: 92px;        /* резерв под подсказку */
+      --vvTop: 0px;         /* компенсация “сдвига” visualViewport на iOS */
     }
 
     html, body{
@@ -24,11 +25,14 @@
       overflow: hidden;
     }
 
-    /* фиксируем экран, чтобы iOS не пытался “подскроллить” к фокусу */
+    /* фиксируем экран */
     body{
       position: fixed;
       inset: 0;
       width: 100%;
+      /* главное: компенсируем offsetTop Safari, чтобы НИЧЕГО не ездило */
+      transform: translateY(calc(-1 * var(--vvTop)));
+      will-change: transform;
     }
 
     .screen{
@@ -148,14 +152,19 @@
       background: #d9d9d9;
     }
 
-    td.correct{
-      background: #e8f0fe;
-    }
+  td.correct{
+  background: #e8f0fe;
+}
 
-    /* подсказанная (открытая) буква */
-    td.hint{
-      background: #f3f7ff;
-    }
+td.hint{
+  background: #f3f7ff;
+}
+
+td.hint .cellBtn{
+  color: #1a73e8;
+  font-weight: 700;
+}
+  
 
     .cellBtn{
       width: 100%;
@@ -176,11 +185,6 @@
     }
 
     td.correct .cellBtn{
-      color: #1a73e8;
-      font-weight: 700;
-    }
-
-    td.hint .cellBtn{
       color: #1a73e8;
       font-weight: 700;
     }
@@ -252,12 +256,12 @@
   <div class="screen">
     <div class="top">
       <div class="panel">
-        <div class="title">Кроссворд (RU) — 2</div>
+        <div class="title">Кроссворд (EN)</div>
         <div class="note">Серые клетки — пробелы между словами. Тап по клетке выбирает слово, повторный тап переключает направление.</div>
-        <div class="actions">
-          <button id="clearBtn">Очистить</button>
-          <button id="hintBtn">Открыть букву</button>
-        </div>
+       <div class="actions">
+  <button id="clearBtn">Очистить</button>
+  <button id="hintBtn">Открыть букву</button>
+</div>
       </div>
     </div>
 
@@ -281,56 +285,70 @@
 
 <script>
   const crossword = {
-    width: 22,
-    height: 20,
+  width: 23,
+  height: 20,
 
-    // серый квадрат между словами "КИРЖАЧ" и "ЛЕСИК"
-    gaps: [
-      { row: 9, col: 13 }
-    ],
+  gaps: [
+    // серый квадрат между КИРЖАЧ и ЛЕСИК
+    { row: 9, col: 13 },
+  ],
 
-    entries: [
-      // 10) ЛЕЩЕНКО
-      { id: 10, dir:"across", row: 1, col: 1,  answer:"ЛЕЩЕНКО", clue:"Вовчик называет его Левчиком" },
+  entries: [
+    // 10) ЛЕЩЕНКО
+    { id: 10, dir:"across", row: 1, col: 1, answer:"ЛЕЩЕНКО",
+      clue:"Вовчик называет его Левчиком" },
 
-      // 7) КОНЬ (пересекается с НЕВИДИМКА на букве Н)
-      { id: 7,  dir:"down",   row: 1, col: 6,  answer:"КОНЬ", clue:"Кем хотела быть Саша К." },
+    // 7) КОНЬ
+    { id: 7, dir:"down", row: 1, col: 6, answer:"КОНЬ",
+      clue:"Кем хотела быть Саша К." },
 
-      // 5) НЕВИДИМКА
-      { id: 5,  dir:"across", row: 3, col: 6,  answer:"НЕВИДИМКА", clue:"Димка из больницы" },
+    // 5) НЕВИДИМКА
+    { id: 5, dir:"across", row: 3, col: 6, answer:"НЕВИДИМКА",
+      clue:"Димка из больницы" },
 
-      // 3) ВИТЮЛЕК (или ВИТЮЛЁК — Е/Ё считаем одной буквой)
-      { id: 3,  dir:"down",   row: 3, col: 8,  answer:"ВИТЮЛЕК", clue:"Самые сильные руки Измайлово, потенциальное второе место по сильным ножкам" },
+    // 3) ВИТЮЛЕК (Е/Ё = одно и то же)
+    { id: 3, dir:"down", row: 3, col: 8, answer:"ВИТЮЛЕК",
+      clue:"Самые сильные руки Измайлово, потенциальное второе место по сильным ножкам" },
 
-      // 1) ГОБЛИН
-      { id: 1,  dir:"across", row: 7, col: 5,  answer:"ГОБЛИН", clue:"Так обзывается мужик на даче с двумя собаками" },
+    // 1) ГОБЛИН
+    { id: 1, dir:"across", row: 7, col: 5, answer:"ГОБЛИН",
+      clue:"Так обзывается мужик на даче с двумя собаками" },
 
-      // 2) АНДРЕЙЧИКОВА
-      { id: 2,  dir:"down",   row: 6, col: 10, answer:"АНДРЕЙЧИКОВА", clue:"Человек-долговая яма, с процентами суммарно должна уже отписать свой бизнес, накинув пару мультов" },
+    // 2) АНДРЕЙЧИКОВА
+    { id: 2, dir:"down", row: 6, col: 10, answer:"АНДРЕЙЧИКОВА",
+      clue:"Человек-долговая яма, с процентами суммарно должна уже отписать свой бизнес, накинув пару мультов каждом" },
 
-      // 6) КИРЖАЧ ЛЕСИК (как одна логика выбора/подсветки)
-      { id: 61, dir:"down",   row: 3, col: 13, answer:"КИРЖАЧ", group:"kirzhach", clue:"Самый лучший клиент Дашеньки" },
-      { id: 62, dir:"down",   row: 10,col: 13, answer:"ЛЕСИК",  group:"kirzhach", clue:"Самый лучший клиент Дашеньки" },
+    // 4) НАТАШЕНЬКА
+    { id: 4, dir:"across", row: 14, col: 2, answer:"НАТАШЕНЬКА",
+      clue:"Любовь с работы, картавит, по слухам стала моделью в Китае" },
 
-      // 12) ЧАСИК
-      { id: 12, dir:"across", row: 8, col: 13, answer:"ЧАСИК", clue:"Тихий" },
+    // 8) ДЕНЬГУЛЬКОВА
+    { id: 8, dir:"across", row: 15, col: 1, answer:"ДЕНЬГУЛЬКОВА",
+      clue:"Самые сильные ножки Ховрино и Измайлово" },
 
-      // 4) НАТАШЕНЬКА
-      { id: 4,  dir:"across", row: 16,col: 1,  answer:"НАТАШЕНЬКА", clue:"Любовь с работы, картавит, по слухам стала моделью в Китае" },
+    // 6) КИРЖАЧ лесик (как фраза, подсветка одной группой)
+    { id: 61, dir:"down", row: 3, col: 13, answer:"КИРЖАЧ", group:"kirzhach_lesik",
+      clue:"Самый лучший клиент Дашеньки" },
+    { id: 62, dir:"down", row: 10, col: 13, answer:"ЛЕСИК", group:"kirzhach_lesik",
+      clue:"Самый лучший клиент Дашеньки" },
 
-      // 8) ДЕНЬГУЛЬКОВА
-      { id: 8,  dir:"across", row: 17,col: 1,  answer:"ДЕНЬГУЛЬКОВА", clue:"Самые сильные ножки Ховрино и Измайлово" },
+    // 12) ЧАСИК
+    { id: 12, dir:"across", row: 8, col: 13, answer:"ЧАСИК",
+      clue:"Тихий" },
 
-      // 13) ПОЛИГРАФ
-      { id: 13, dir:"down",   row: 13,col: 16, answer:"ПОЛИГРАФ", clue:"То, что не прошел умный чел, потому что оказался вонючим мусором" },
+    // 9) КОЛЕСОВА
+    { id: 9, dir:"across", row: 14, col: 13, answer:"КОЛЕСОВА",
+      clue:"Современный террорист-смертник" },
 
-      // 9) КОЛЕСОВА (пересечение с ПОЛИГРАФ на О)
-      { id: 9,  dir:"across", row: 14,col: 15, answer:"КОЛЕСОВА", clue:"Современный террорист-смертник" },
+    // 13) ПОЛИГРАФ
+    { id: 13, dir:"down", row: 12, col: 15, answer:"ПОЛИГРАФ",
+      clue:"То, что не прошел умный чел, потому что оказался вонючим мусором" },
 
-      // 11) МАРЧЕНКО (пересечение с КОЛЕСОВА на А)
-      { id: 11, dir:"down",   row: 13,col: 22, answer:"МАРЧЕНКО", clue:"Крыса, коллега Влада, которая сливает инфу" },
-    ]
-  };
+    // 11) МАРЧЕНКО
+    { id: 11, dir:"down", row: 13, col: 20, answer:"МАРЧЕНКО",
+      clue:"Крыса, коллега Влада, которая сливает инфу" },
+  ]
+};
 
   const W = crossword.width;
   const H = crossword.height;
@@ -339,14 +357,13 @@
   const clueDir = document.getElementById("clueDir");
   const clueText = document.getElementById("clueText");
 
-  // Е/Ё считаем одной буквой
   function normalize(s){
-    return (s||"")
-      .toString()
-      .trim()
-      .toUpperCase()
-      .replaceAll("Ё","Е");
-  }
+  return (s||"")
+    .toString()
+    .trim()
+    .toUpperCase()
+    .replace(/Ё/g, "Е");
+}
 
   const gapSet = new Set((crossword.gaps||[]).map(g=>`${g.row-1},${g.col-1}`));
   const mask = Array.from({length:H}, ()=> Array.from({length:W}, ()=> false));
@@ -395,11 +412,10 @@
   const rowsVisible = (maxR - minR + 1);
 
   // состояние букв
-  const valueByKey = new Map(); // key -> "А"
+  const valueByKey = new Map(); // key -> "A"
   const tdByKey = new Map();    // key -> td
   const btnByKey = new Map();   // key -> button
   const cellToEntries = new Map();
-  const hintedKeys = new Set(); // подсказанные клетки
 
   function addCellEntry(r,c,entry){
     const key = `${r},${c}`;
@@ -464,28 +480,56 @@
     document.documentElement.style.setProperty("--scale", String(Math.max(0.2, s)));
   }
 
-  // клавиатура: двигаем только подсказку (как у тебя в рабочем)
-  function updateKeyboardOffset(){
+  // ====== СТАБИЛИЗАЦИЯ iOS: kb + vvTop без “гуляния” ======
+  let rafPending = false;
+  let focusActive = false;
+  let kbMax = 0;
+
+  function updateViewportVars(){
     const vv = window.visualViewport;
     if(!vv){
       document.documentElement.style.setProperty("--kb","0px");
+      document.documentElement.style.setProperty("--vvTop","0px");
       return;
     }
+
+    // offsetTop Safari (чтобы всё не “прыгало”)
+    const top = Math.max(0, Math.round(vv.offsetTop));
+    document.documentElement.style.setProperty("--vvTop", `${top}px`);
+
+    // высота клавиатуры (может “дрожать” на пару пикселей) — фиксируем максимум на время фокуса
     const bottomGap = Math.max(0, Math.round(window.innerHeight - (vv.height + vv.offsetTop)));
-    document.documentElement.style.setProperty("--kb", `${bottomGap}px`);
+
+    if(focusActive){
+      kbMax = Math.max(kbMax, bottomGap);
+      document.documentElement.style.setProperty("--kb", `${kbMax}px`);
+    } else {
+      kbMax = 0;
+      document.documentElement.style.setProperty("--kb", `${bottomGap}px`);
+    }
   }
 
-  computeScale();
-  updateKeyboardOffset();
+  function scheduleViewportUpdate(){
+    if(rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(()=>{
+      rafPending = false;
+      updateViewportVars();
+    });
+  }
+  // ====== /стабилизация ======
 
-  window.addEventListener("resize", () => { computeScale(); updateKeyboardOffset(); });
+  computeScale();
+  updateViewportVars();
+
+  window.addEventListener("resize", () => { computeScale(); scheduleViewportUpdate(); });
   window.addEventListener("orientationchange", () => {
-    setTimeout(() => { computeScale(); updateKeyboardOffset(); }, 150);
+    setTimeout(() => { computeScale(); scheduleViewportUpdate(); }, 150);
   });
 
   if(window.visualViewport){
-    window.visualViewport.addEventListener("resize", updateKeyboardOffset);
-    window.visualViewport.addEventListener("scroll", updateKeyboardOffset);
+    window.visualViewport.addEventListener("resize", scheduleViewportUpdate);
+    window.visualViewport.addEventListener("scroll", scheduleViewportUpdate);
   }
 
   // активное слово
@@ -595,9 +639,7 @@
         const c = (e.col-1) + (e.dir==="across"? i : 0);
         const key = `${r},${c}`;
         if(!btnByKey.has(key)) continue;
-
-        const cur = normalize(valueByKey.get(key) || "");
-        if(cur !== w[i]) ok = false;
+        if((valueByKey.get(key) || "") !== w[i]) ok = false;
       }
 
       if(ok){
@@ -610,12 +652,105 @@
       }
     }
   }
+// открытые подсказкой клетки (чтобы их нельзя было стереть)
+const hintedKeys = new Set();
 
+function setHintCell(key, ch){
+  setCellChar(key, ch);
+  hintedKeys.add(key);
+  const td = tdByKey.get(key);
+  if(td) td.classList.add("hint");
+}
+
+// расширяем getPathCells, чтобы удобно получать клетки фразы целиком
+function getAllKeysForEntryOrGroup(entry){
+  if(!entry) return [];
+  if(entry.group){
+    const parts = crossword.entries
+      .filter(e=>e.group===entry.group && e.dir===entry.dir)
+      .sort((a,b)=> (a.row-b.row) || (a.col-b.col));
+    const all = [];
+    for(const p of parts) all.push(...getPathCells(p));
+    return all;
+  }
+  return getPathCells(entry);
+}
+
+function getCorrectCharForCell(entry, key){
+  // найдём позицию key в слове/фразе и вернём правильную букву
+  const keys = getAllKeysForEntryOrGroup(entry);
+
+  // соберём “правильную строку” для слова/фразы
+  let correct = "";
+  if(entry.group){
+    const parts = crossword.entries
+      .filter(e=>e.group===entry.group && e.dir===entry.dir)
+      .sort((a,b)=> (a.row-b.row) || (a.col-b.col));
+    for(const p of parts) correct += normalize(p.answer);
+  } else {
+    correct = normalize(entry.answer);
+  }
+
+  const idx = keys.indexOf(key);
+  if(idx < 0 || idx >= correct.length) return null;
+  return correct[idx];
+}
+
+function revealOneLetter(){
+  if(!activeEntry){
+    clueText.textContent = "Сначала выберите слово";
+    return;
+  }
+
+  const keys = getAllKeysForEntryOrGroup(activeEntry);
+
+  // ищем первую пустую или неправильную клетку, которая не серый gap и существует
+  for(const key of keys){
+    if(!btnByKey.has(key)) continue;          // вдруг пустая/вне маски
+    if(gapSet.has(key)) continue;             // на всякий
+    const correctCh = getCorrectCharForCell(activeEntry, key);
+    if(!correctCh) continue;
+
+    const cur = valueByKey.get(key) || "";
+    if(cur !== correctCh){
+      setHintCell(key, correctCh);
+      updateCorrectMarks();
+
+      // после подсказки двинемся на следующую клетку (чтобы было удобно продолжать)
+      activeKey = key;
+      moveInActive(activeEntry, activeKey, +1);
+      return;
+    }
+  }
+
+  clueText.textContent = "В этом слове уже всё верно 🙂";
+}
+
+document.getElementById("hintBtn").addEventListener("click", revealOneLetter);
   function focusKeyboard(){
-    updateKeyboardOffset();
+    // отмечаем, что клавиатура открыта: фиксируем kbMax, чтобы подсказка не “гуляла”
+    focusActive = true;
+    kbMax = 0;
+    scheduleViewportUpdate();
+
     try { kbd.focus({ preventScroll: true }); }
     catch { kbd.focus(); }
+
+    // после появления клавиатуры у iOS часто есть ещё один микрошаг — поймаем
+    setTimeout(scheduleViewportUpdate, 50);
+    setTimeout(scheduleViewportUpdate, 140);
   }
+
+  // когда клавиатура закрылась — отпускаем “заморозку”
+  document.addEventListener("focusout", (e)=>{
+    if(e.target === kbd){
+      setTimeout(()=>{
+        focusActive = false;
+        kbMax = 0;
+        scheduleViewportUpdate();
+      }, 120);
+    }
+  });
 
   // обработка тапов по клеткам
   for(const [key, btn] of btnByKey.entries()){
@@ -646,10 +781,16 @@
     moveInActive(activeEntry, activeKey, +1);
   }
 
-  function handleBackspace(){
-    if(!activeEntry || !activeKey) return;
+function handleBackspace(){
+  if(!activeEntry || !activeKey) return;
 
-    const cur = valueByKey.get(activeKey) || "";
+  if(hintedKeys.has(activeKey)){
+    // подсказанную букву не стираем, просто шаг назад
+    moveInActive(activeEntry, activeKey, -1);
+    return;
+  }
+
+  const cur = valueByKey.get(activeKey) || "";
     if(cur){
       setCellChar(activeKey, "");
       updateCorrectMarks();
@@ -681,80 +822,20 @@
     }
   });
 
-  // открыть одну букву (подсказка)
-  function revealOneLetter(){
-    if(!activeEntry) return;
-
-    // собираем ключи активного “слова” (или группы)
-    let keys = [];
-    if(activeEntry.group){
-      const parts = crossword.entries
-        .filter(e=>e.group===activeEntry.group && e.dir===activeEntry.dir)
-        .sort((a,b)=> (a.row-b.row) || (a.col-b.col));
-      for(const p of parts) keys.push(...getPathCells(p));
-    } else {
-      keys = getPathCells(activeEntry);
-    }
-
-    // кандидаты: не gap, есть кнопка, ещё не подсказано, и буква не совпадает с правильной
-    const candidates = [];
-    for(const key of keys){
-      if(!btnByKey.has(key)) continue;
-      if(gapSet.has(key)) continue;
-
-      // найдем “правильную” букву для этого key из любого entry, где оно встречается
-      const list = cellToEntries.get(key) || [];
-      let correct = null;
-      for(const e of list){
-        const w = normalize(e.answer);
-        for(let i=0;i<w.length;i++){
-          const r = (e.row-1) + (e.dir==="down"? i : 0);
-          const c = (e.col-1) + (e.dir==="across"? i : 0);
-          if(`${r},${c}` === key){
-            correct = w[i];
-            break;
-          }
-        }
-        if(correct) break;
-      }
-      if(!correct) continue;
-
-      const cur = normalize(valueByKey.get(key) || "");
-      if(cur === correct) continue;
-      if(hintedKeys.has(key)) continue;
-
-      candidates.push([key, correct]);
-    }
-
-    if(!candidates.length) return;
-
-    const [pickKey, pickLetter] = candidates[Math.floor(Math.random() * candidates.length)];
-    setCellChar(pickKey, pickLetter);
-    hintedKeys.add(pickKey);
-
-    const td = tdByKey.get(pickKey);
-    if(td) td.classList.add("hint");
-
-    updateCorrectMarks();
-  }
-
-  document.getElementById("hintBtn").addEventListener("click", revealOneLetter);
-
   // очистка
-  function clearAll(){
-    for(const key of valueByKey.keys()) setCellChar(key, "");
+function clearAll(){
+  for(const key of valueByKey.keys()) setCellChar(key, "");
+  hintedKeys.clear();
+  for(const td of tdByKey.values()) td.classList.remove("hint");
 
-    hintedKeys.clear();
-    for(const td of tdByKey.values()) td.classList.remove("hint");
-
-    updateCorrectMarks();
-    clearActiveHighlight();
-    activeEntry = null;
-    activeKey = null;
-    lastTapKey = null;
-    clueDir.textContent = "—";
-    clueText.textContent = "Нажмите на слово";
-  }
+  updateCorrectMarks();
+  clearActiveHighlight();
+  activeEntry = null;
+  activeKey = null;
+  lastTapKey = null;
+  clueDir.textContent = "—";
+  clueText.textContent = "Нажмите на слово";
+}
 
   document.getElementById("clearBtn").addEventListener("click", clearAll);
 
