@@ -12,6 +12,7 @@
       --kb: 0px;            /* высота клавиатуры */
       --scale: 1;           /* масштаб поля */
       --clueH: 92px;        /* резерв под подсказку */
+      --vvTop: 0px;         /* компенсация “сдвига” visualViewport на iOS */
     }
 
     html, body{
@@ -24,11 +25,14 @@
       overflow: hidden;
     }
 
-    /* фиксируем экран, чтобы iOS не пытался “подскроллить” к фокусу */
+    /* фиксируем экран */
     body{
       position: fixed;
       inset: 0;
       width: 100%;
+      /* главное: компенсируем offsetTop Safari, чтобы НИЧЕГО не ездило */
+      transform: translateY(calc(-1 * var(--vvTop)));
+      will-change: transform;
     }
 
     .screen{
@@ -400,7 +404,7 @@
   }
   gridEl.appendChild(table);
 
-  // масштаб поля (вписать в доступную высоту без дерганий)
+  // масштаб поля
   function computeScale(){
     const wrap = document.getElementById("gridWrap");
     const availW = wrap.clientWidth;
@@ -416,28 +420,56 @@
     document.documentElement.style.setProperty("--scale", String(Math.max(0.2, s)));
   }
 
-  // клавиатура: двигаем только подсказку
-  function updateKeyboardOffset(){
+  // ====== СТАБИЛИЗАЦИЯ iOS: kb + vvTop без “гуляния” ======
+  let rafPending = false;
+  let focusActive = false;
+  let kbMax = 0;
+
+  function updateViewportVars(){
     const vv = window.visualViewport;
     if(!vv){
       document.documentElement.style.setProperty("--kb","0px");
+      document.documentElement.style.setProperty("--vvTop","0px");
       return;
     }
+
+    // offsetTop Safari (чтобы всё не “прыгало”)
+    const top = Math.max(0, Math.round(vv.offsetTop));
+    document.documentElement.style.setProperty("--vvTop", `${top}px`);
+
+    // высота клавиатуры (может “дрожать” на пару пикселей) — фиксируем максимум на время фокуса
     const bottomGap = Math.max(0, Math.round(window.innerHeight - (vv.height + vv.offsetTop)));
-    document.documentElement.style.setProperty("--kb", `${bottomGap}px`);
+
+    if(focusActive){
+      kbMax = Math.max(kbMax, bottomGap);
+      document.documentElement.style.setProperty("--kb", `${kbMax}px`);
+    } else {
+      kbMax = 0;
+      document.documentElement.style.setProperty("--kb", `${bottomGap}px`);
+    }
   }
 
-  computeScale();
-  updateKeyboardOffset();
+  function scheduleViewportUpdate(){
+    if(rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(()=>{
+      rafPending = false;
+      updateViewportVars();
+    });
+  }
+  // ====== /стабилизация ======
 
-  window.addEventListener("resize", () => { computeScale(); updateKeyboardOffset(); });
+  computeScale();
+  updateViewportVars();
+
+  window.addEventListener("resize", () => { computeScale(); scheduleViewportUpdate(); });
   window.addEventListener("orientationchange", () => {
-    setTimeout(() => { computeScale(); updateKeyboardOffset(); }, 150);
+    setTimeout(() => { computeScale(); scheduleViewportUpdate(); }, 150);
   });
 
   if(window.visualViewport){
-    window.visualViewport.addEventListener("resize", updateKeyboardOffset);
-    window.visualViewport.addEventListener("scroll", updateKeyboardOffset);
+    window.visualViewport.addEventListener("resize", scheduleViewportUpdate);
+    window.visualViewport.addEventListener("scroll", scheduleViewportUpdate);
   }
 
   // активное слово
@@ -562,10 +594,29 @@
   }
 
   function focusKeyboard(){
-    updateKeyboardOffset();
+    // отмечаем, что клавиатура открыта: фиксируем kbMax, чтобы подсказка не “гуляла”
+    focusActive = true;
+    kbMax = 0;
+    scheduleViewportUpdate();
+
     try { kbd.focus({ preventScroll: true }); }
     catch { kbd.focus(); }
+
+    // после появления клавиатуры у iOS часто есть ещё один микрошаг — поймаем
+    setTimeout(scheduleViewportUpdate, 50);
+    setTimeout(scheduleViewportUpdate, 140);
   }
+
+  // когда клавиатура закрылась — отпускаем “заморозку”
+  document.addEventListener("focusout", (e)=>{
+    if(e.target === kbd){
+      setTimeout(()=>{
+        focusActive = false;
+        kbMax = 0;
+        scheduleViewportUpdate();
+      }, 120);
+    }
+  });
 
   // обработка тапов по клеткам
   for(const [key, btn] of btnByKey.entries()){
@@ -627,8 +678,6 @@
       kbd.value = "";
     }
     if(e.key && e.key.length === 1){
-      // на некоторых iOS keydown дает символ — поддержим
-      // но не дублируем, если потом придет input: обнуляем
       setTimeout(() => { kbd.value = ""; }, 0);
     }
   });
