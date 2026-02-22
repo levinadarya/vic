@@ -11,6 +11,7 @@
       --border: 2px;
       --scale: 1;           /* масштаб поля */
       --vvTop: 0px;         /* компенсация “сдвига” visualViewport на iOS */
+      --vh: 100svh;         /* ВАЖНО: реальная видимая высота (без клавиатуры) */
     }
 
     html, body{
@@ -34,7 +35,7 @@
     }
 
     .screen{
-      height: 100svh;
+      height: var(--vh); /* <-- ВАЖНО: вместо 100svh */
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -50,6 +51,7 @@
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
+      flex: 0 0 auto; /* <-- чтобы не сжималось странно */
     }
 
     button{
@@ -61,28 +63,28 @@
       font-size: 14px;
     }
 
-    /* поле всегда закреплено, без резерва под подсказку */
+    /* поле всегда закреплено */
     .gameArea{
-      flex: 1;
+      flex: 1 1 auto;
+      min-height: 0; /* важно для flex, чтобы не раздувало */
       display: flex;
       justify-content: center;
       align-items: flex-start;
       padding: 0;
       box-sizing: border-box;
       overflow: hidden;
-      min-height: 0; /* важно для flex, чтобы не раздувало */
     }
 
     .gridWrap{
       max-width: 980px;
       width: 100%;
       height: 100%;
+      min-height: 0;
       overflow: hidden;
       display: flex;
       justify-content: center;
       align-items: flex-start;
       position: relative;
-      min-height: 0;
     }
 
     .gridScaler{
@@ -168,12 +170,13 @@
       font-weight: 700;
     }
 
-    /* подсказка теперь СТАТИЧНАЯ: всегда сразу под кроссвордом и никуда не двигается */
+    /* подсказка статична и всегда видима (теперь экран ужимается по --vh) */
     .cluebar{
       max-width: 980px;
       margin: 0 auto;
       width: 100%;
       box-sizing: border-box;
+      flex: 0 0 auto; /* <-- фиксируем высоту блока подсказки */
     }
 
     .clueInner{
@@ -253,66 +256,24 @@
   const crossword = {
     width: 23,
     height: 20,
-
     gaps: [
-      // серый квадрат между КИРЖАЧ и ЛЕСИК
       { row: 9, col: 13 },
     ],
-
     entries: [
-      // 10) ЛЕЩЕНКО
-      { id: 10, dir:"across", row: 1, col: 1, answer:"ЛЕЩЕНКО",
-        clue:"Вовчик называет его Левчиком" },
-
-      // 7) КОНЬ
-      { id: 7, dir:"down", row: 1, col: 6, answer:"КОНЬ",
-        clue:"Кем хотела быть Саша К." },
-
-      // 5) НЕВИДИМКА
-      { id: 5, dir:"across", row: 3, col: 6, answer:"НЕВИДИМКА",
-        clue:"Димка из больницы" },
-
-      // 3) ВИТЮЛЕК (Е/Ё = одно и то же)
-      { id: 3, dir:"down", row: 3, col: 8, answer:"ВИТЮЛЕК",
-        clue:"Самые сильные руки Измайлово, потенциальное второе место по сильным ножкам" },
-
-      // 1) ГОБЛИН
-      { id: 1, dir:"across", row: 7, col: 5, answer:"ГОБЛИН",
-        clue:"Так обзывается мужик на даче с двумя собаками" },
-
-      // 2) АНДРЕЙЧИКОВА
-      { id: 2, dir:"down", row: 6, col: 10, answer:"АНДРЕЙЧИКОВА",
-        clue:"Человек-долговая яма, с процентами суммарно должна уже отписать свой бизнес, накинув пару мультов каждом" },
-
-      // 4) НАТАШЕНЬКА
-      { id: 4, dir:"across", row: 14, col: 2, answer:"НАТАШЕНЬКА",
-        clue:"Любовь с работы, картавит, по слухам стала моделью в Китае" },
-
-      // 8) ДЕНЬГУЛЬКОВА
-      { id: 8, dir:"across", row: 15, col: 1, answer:"ДЕНЬГУЛЬКОВА",
-        clue:"Самые сильные ножки Ховрино и Измайлово" },
-
-      // 6) КИРЖАЧ лесик (как фраза, подсветка одной группой)
-      { id: 61, dir:"down", row: 3, col: 13, answer:"КИРЖАЧ", group:"kirzhach_lesik",
-        clue:"Самый лучший клиент Дашеньки" },
-      { id: 62, dir:"down", row: 10, col: 13, answer:"ЛЕСИК", group:"kirzhach_lesik",
-        clue:"Самый лучший клиент Дашеньки" },
-
-      // 12) ЧАСИК
-      { id: 12, dir:"across", row: 8, col: 13, answer:"ЧАСИК",
-        clue:"Тихий" },
-
-      // 9) КОЛЕСОВА
-      { id: 9, dir:"across", row: 14, col: 13, answer:"КОЛЕСОВА",
-        clue:"Современный террорист-смертник" },
-
-      // 13) ПОЛИГРАФ
-      { id: 13, dir:"down", row: 12, col: 15, answer:"ПОЛИГРАФ",
-        clue:"То, что не прошел умный чел, потому что оказался вонючим мусором" },
-
-      // 11) МАРЧЕНКО
-      { id: 11, dir:"down", row: 13, col: 20, answer:"МАРЧЕНКО",
-        clue:"Крыса, коллега Влада, которая сливает инфу" },
+      { id: 10, dir:"across", row: 1, col: 1, answer:"ЛЕЩЕНКО", clue:"Вовчик называет его Левчиком" },
+      { id: 7, dir:"down", row: 1, col: 6, answer:"КОНЬ", clue:"Кем хотела быть Саша К." },
+      { id: 5, dir:"across", row: 3, col: 6, answer:"НЕВИДИМКА", clue:"Димка из больницы" },
+      { id: 3, dir:"down", row: 3, col: 8, answer:"ВИТЮЛЕК", clue:"Самые сильные руки Измайлово, потенциальное второе место по сильным ножкам" },
+      { id: 1, dir:"across", row: 7, col: 5, answer:"ГОБЛИН", clue:"Так обзывается мужик на даче с двумя собаками" },
+      { id: 2, dir:"down", row: 6, col: 10, answer:"АНДРЕЙЧИКОВА", clue:"Человек-долговая яма, с процентами суммарно должна уже отписать свой бизнес, накинув пару мультов каждом" },
+      { id: 4, dir:"across", row: 14, col: 2, answer:"НАТАШЕНЬКА", clue:"Любовь с работы, картавит, по слухам стала моделью в Китае" },
+      { id: 8, dir:"across", row: 15, col: 1, answer:"ДЕНЬГУЛЬКОВА", clue:"Самые сильные ножки Ховрино и Измайлово" },
+      { id: 61, dir:"down", row: 3, col: 13, answer:"КИРЖАЧ", group:"kirzhach_lesik", clue:"Самый лучший клиент Дашеньки" },
+      { id: 62, dir:"down", row: 10, col: 13, answer:"ЛЕСИК", group:"kirzhach_lesik", clue:"Самый лучший клиент Дашеньки" },
+      { id: 12, dir:"across", row: 8, col: 13, answer:"ЧАСИК", clue:"Тихий" },
+      { id: 9, dir:"across", row: 14, col: 13, answer:"КОЛЕСОВА", clue:"Современный террорист-смертник" },
+      { id: 13, dir:"down", row: 12, col: 15, answer:"ПОЛИГРАФ", clue:"То, что не прошел умный чел, потому что оказался вонючим мусором" },
+      { id: 11, dir:"down", row: 13, col: 20, answer:"МАРЧЕНКО", clue:"Крыса, коллега Влада, которая сливает инфу" },
     ]
   };
 
@@ -378,9 +339,9 @@
   const rowsVisible = (maxR - minR + 1);
 
   // состояние букв
-  const valueByKey = new Map(); // key -> "A"
-  const tdByKey = new Map();    // key -> td
-  const btnByKey = new Map();   // key -> button
+  const valueByKey = new Map();
+  const tdByKey = new Map();
+  const btnByKey = new Map();
   const cellToEntries = new Map();
 
   function addCellEntry(r,c,entry){
@@ -446,17 +407,19 @@
     document.documentElement.style.setProperty("--scale", String(Math.max(0.2, s)));
   }
 
-  // ====== СТАБИЛИЗАЦИЯ iOS: только vvTop, без подъёма подсказки ======
+  // ====== СТАБИЛИЗАЦИЯ iOS: vvTop + vh (чтобы подсказка НЕ пряталась под клавиатуру) ======
   let rafPending = false;
 
   function updateViewportVars(){
     const vv = window.visualViewport;
     if(!vv){
       document.documentElement.style.setProperty("--vvTop","0px");
+      document.documentElement.style.setProperty("--vh","100svh");
       return;
     }
     const top = Math.max(0, Math.round(vv.offsetTop));
     document.documentElement.style.setProperty("--vvTop", `${top}px`);
+    document.documentElement.style.setProperty("--vh", `${Math.round(vv.height)}px`);
   }
 
   function scheduleViewportUpdate(){
@@ -465,6 +428,7 @@
     requestAnimationFrame(()=>{
       rafPending = false;
       updateViewportVars();
+      computeScale(); // важно: при изменении vh пересчитать масштаб
     });
   }
   // ====== /стабилизация ======
@@ -472,10 +436,8 @@
   computeScale();
   updateViewportVars();
 
-  window.addEventListener("resize", () => { computeScale(); scheduleViewportUpdate(); });
-  window.addEventListener("orientationchange", () => {
-    setTimeout(() => { computeScale(); scheduleViewportUpdate(); }, 150);
-  });
+  window.addEventListener("resize", scheduleViewportUpdate);
+  window.addEventListener("orientationchange", () => setTimeout(scheduleViewportUpdate, 150));
 
   if(window.visualViewport){
     window.visualViewport.addEventListener("resize", scheduleViewportUpdate);
@@ -603,7 +565,7 @@
     }
   }
 
-  // открытые подсказкой клетки (чтобы их нельзя было стереть)
+  // открытые подсказкой клетки
   const hintedKeys = new Set();
 
   function setHintCell(key, ch){
@@ -678,6 +640,8 @@
     scheduleViewportUpdate();
     try { kbd.focus({ preventScroll: true }); }
     catch { kbd.focus(); }
+    setTimeout(scheduleViewportUpdate, 50);
+    setTimeout(scheduleViewportUpdate, 140);
   }
 
   // обработка тапов по клеткам
