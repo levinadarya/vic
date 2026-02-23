@@ -253,30 +253,49 @@
   <input id="kbd" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" />
 
 <script>
-  const crossword = {
-    width: 23,
-    height: 20,
-    gaps: [
-      { row: 9, col: 13 },
-    ],
-    entries: [
-      { id: 10, dir:"across", row: 1, col: 1, answer:"ЛЕЩЕНКО", clue:"Вовчик называет его Левчиком" },
-      { id: 7, dir:"down", row: 1, col: 6, answer:"КОНЬ", clue:"Кем хотела быть Саша К." },
-      { id: 5, dir:"across", row: 3, col: 6, answer:"НЕВИДИМКА", clue:"Димка из больницы" },
-      { id: 3, dir:"down", row: 3, col: 8, answer:"ВИТЮЛЕК", clue:"Самые сильные руки Измайлово, потенциальное второе место по сильным ножкам" },
-      { id: 1, dir:"across", row: 7, col: 5, answer:"ГОБЛИН", clue:"Так обзывается мужик на даче с двумя собаками" },
-      { id: 2, dir:"down", row: 6, col: 10, answer:"АНДРЕЙЧИКОВА", clue:"Человек-долговая яма, с процентами суммарно должна уже отписать свой бизнес, накинув пару мультов каждом" },
-      { id: 4, dir:"across", row: 14, col: 2, answer:"НАТАШЕНЬКА", clue:"Любовь с работы, картавит, по слухам стала моделью в Китае" },
-      { id: 8, dir:"across", row: 15, col: 1, answer:"ДЕНЬГУЛЬКОВА", clue:"Самые сильные ножки Ховрино и Измайлово" },
-      { id: 61, dir:"down", row: 3, col: 13, answer:"КИРЖАЧ", group:"kirzhach_lesik", clue:"Самый лучший клиент Дашеньки" },
-      { id: 62, dir:"down", row: 10, col: 13, answer:"ЛЕСИК", group:"kirzhach_lesik", clue:"Самый лучший клиент Дашеньки" },
-      { id: 12, dir:"across", row: 8, col: 13, answer:"ЧАСИК", clue:"Тихий" },
-      { id: 9, dir:"across", row: 14, col: 13, answer:"КОЛЕСОВА", clue:"Современный террорист-смертник" },
-      { id: 13, dir:"down", row: 12, col: 15, answer:"ПОЛИГРАФ", clue:"То, что не прошел умный чел, потому что оказался вонючим мусором" },
-      { id: 11, dir:"down", row: 13, col: 20, answer:"МАРЧЕНКО", clue:"Крыса, коллега Влада, которая сливает инфу" },
-    ]
-  };
+ const crossword = {
+  width: 18,
+  height: 18,
+  gaps: [
+    // если между словами нет серых пробелов — оставляем пустым
+  ],
+  entries: [
+    { id: 1, dir:"across", row: 11, col: 8,  answer:"ВАЛБЕРИС", clue:"Так эмм щас" },
 
+    { id: 2, dir:"down",   row: 10, col: 17, answer:"МАРГАРИТА", clue:"Мне 4 <...>, 3 чизбургера, картошку фри с сырным соусом, кокаколку, пирожок с вишней и кофеечек" },
+
+    { id: 3, dir:"across", row: 6,  col: 11, answer:"ШУБКА", clue:"C этим карликом путали нашу принцессу" },
+
+    { id: 4, dir:"across", row: 6,  col: 6,  answer:"ЭКЛЕРЧИК", clue:"C этим карликом путали нашу принцессу" },
+
+    { id: 5, dir:"across", row: 8,  col: 8,  answer:"ВАЛБЕРИС", clue:"Cладость, которая на вб почему-то продается за тыщу" },
+
+    { id: 6, dir:"down",   row: 7,  col: 8,  answer:"КЕВИН", clue:"Любимый герой офисика Дашеньки" },
+
+    { id: 7, dir:"across", row: 7,  col: 3,  answer:"ТАНЮХА", clue:"Героиня самого первого сериала, который Виктор Н. и Дарья Л. посмотрели вместе" },
+
+    { id: 8, dir:"down",   row: 2,  col: 4,  answer:"КОППОЛА", clue:"Режиссер крестного отца" },
+
+    { id: 9, dir:"down",   row: 2,  col: 2,  answer:"ФРИСБИ", clue:"Единственный подарок, который получил Бустка от Виктора Н." },
+
+    { id: 10, dir:"across", row: 2, col: 9, answer:"МАТУШКА", clue:`Полевых цветов веночек
+В утренней росе цветок
+Соловья запев свисточек
+Сок берёзовый глоток
+Тишины послушать вволю
+По тропинке в лес густой
+Поболтать с берёзкой вдоволь
+Про него и про любовь` },
+
+    { id: 11, dir:"down", row: 6, col: 7, answer:"ЛОХ", clue:"Тот, кто курит" },
+
+    { id: 12, dir:"across", row: 9, col: 2, answer:"ШУБКА", clue:"Этот подарок Дашенька пока еще не получила, но обязательно получит (пожалуйста)" },
+
+    { id: 13, dir:"down", row: 2, col: 13, answer:"ЛЯМ", clue:"Зп которую нужно просить на собесах" },
+
+    { id: 14, dir:"across", row: 3, col: 9, answer:"БЛИНЧИКИ", clue:"Блюдо приготовленное с любовью" }
+  ]
+};
   const W = crossword.width;
   const H = crossword.height;
 
