@@ -13,6 +13,7 @@
       --scale: 1;           /* масштаб поля */
       --clueH: 92px;        /* резерв под подсказку */
       --vvTop: 0px;         /* компенсация “сдвига” visualViewport на iOS */
+      --vh: 100svh;         /* ВАЖНО: видимая высота (без клавиатуры) */
     }
 
     html, body{
@@ -36,7 +37,7 @@
     }
 
     .screen{
-      height: 100svh;
+      height: var(--vh); /* было 100svh */
       display: flex;
       flex-direction: column;
     }
@@ -47,6 +48,7 @@
       margin: 0 auto;
       width: 100%;
       box-sizing: border-box;
+      flex: 0 0 auto;
     }
 
     .panel{
@@ -85,7 +87,8 @@
     }
 
     .gameArea{
-      flex: 1;
+      flex: 1 1 auto;
+      min-height: 0;
       display: flex;
       justify-content: center;
       align-items: flex-start;
@@ -103,6 +106,7 @@
       justify-content: center;
       align-items: flex-start;
       position: relative;
+      min-height: 0;
     }
 
     .gridScaler{
@@ -152,19 +156,18 @@
       background: #d9d9d9;
     }
 
-  td.correct{
-  background: #e8f0fe;
-}
+    td.correct{
+      background: #e8f0fe;
+    }
 
-td.hint{
-  background: #f3f7ff;
-}
+    td.hint{
+      background: #f3f7ff;
+    }
 
-td.hint .cellBtn{
-  color: #1a73e8;
-  font-weight: 700;
-}
-  
+    td.hint .cellBtn{
+      color: #1a73e8;
+      font-weight: 700;
+    }
 
     .cellBtn{
       width: 100%;
@@ -258,10 +261,10 @@ td.hint .cellBtn{
       <div class="panel">
         <div class="title">Кроссворд (EN)</div>
         <div class="note">Серые клетки — пробелы между словами. Тап по клетке выбирает слово, повторный тап переключает направление.</div>
-       <div class="actions">
-  <button id="clearBtn">Очистить</button>
-  <button id="hintBtn">Открыть букву</button>
-</div>
+        <div class="actions">
+          <button id="clearBtn">Очистить</button>
+          <button id="hintBtn">Открыть букву</button>
+        </div>
       </div>
     </div>
 
@@ -431,7 +434,7 @@ td.hint .cellBtn{
     document.documentElement.style.setProperty("--scale", String(Math.max(0.2, s)));
   }
 
-  // ====== СТАБИЛИЗАЦИЯ iOS: kb + vvTop без “гуляния” ======
+  // ====== СТАБИЛИЗАЦИЯ iOS: kb + vvTop без “гуляния” + vh (чтобы не пряталось под клавиатуру) ======
   let rafPending = false;
   let focusActive = false;
   let kbMax = 0;
@@ -441,12 +444,16 @@ td.hint .cellBtn{
     if(!vv){
       document.documentElement.style.setProperty("--kb","0px");
       document.documentElement.style.setProperty("--vvTop","0px");
+      document.documentElement.style.setProperty("--vh","100svh");
       return;
     }
 
     // offsetTop Safari (чтобы всё не “прыгало”)
     const top = Math.max(0, Math.round(vv.offsetTop));
     document.documentElement.style.setProperty("--vvTop", `${top}px`);
+
+    // видимая высота (важно для iOS с клавиатурой)
+    document.documentElement.style.setProperty("--vh", `${Math.round(vv.height)}px`);
 
     // высота клавиатуры (может “дрожать” на пару пикселей) — фиксируем максимум на время фокуса
     const bottomGap = Math.max(0, Math.round(window.innerHeight - (vv.height + vv.offsetTop)));
@@ -466,6 +473,7 @@ td.hint .cellBtn{
     requestAnimationFrame(()=>{
       rafPending = false;
       updateViewportVars();
+      computeScale(); // важно: при изменении vh пересчитать масштаб
     });
   }
   // ====== /стабилизация ======
@@ -473,9 +481,9 @@ td.hint .cellBtn{
   computeScale();
   updateViewportVars();
 
-  window.addEventListener("resize", () => { computeScale(); scheduleViewportUpdate(); });
+  window.addEventListener("resize", () => { scheduleViewportUpdate(); });
   window.addEventListener("orientationchange", () => {
-    setTimeout(() => { computeScale(); scheduleViewportUpdate(); }, 150);
+    setTimeout(() => { scheduleViewportUpdate(); }, 150);
   });
 
   if(window.visualViewport){
@@ -603,81 +611,83 @@ td.hint .cellBtn{
       }
     }
   }
-// открытые подсказкой клетки (чтобы их нельзя было стереть)
-const hintedKeys = new Set();
 
-function setHintCell(key, ch){
-  setCellChar(key, ch);
-  hintedKeys.add(key);
-  const td = tdByKey.get(key);
-  if(td) td.classList.add("hint");
-}
+  // открытые подсказкой клетки (чтобы их нельзя было стереть)
+  const hintedKeys = new Set();
 
-// расширяем getPathCells, чтобы удобно получать клетки фразы целиком
-function getAllKeysForEntryOrGroup(entry){
-  if(!entry) return [];
-  if(entry.group){
-    const parts = crossword.entries
-      .filter(e=>e.group===entry.group && e.dir===entry.dir)
-      .sort((a,b)=> (a.row-b.row) || (a.col-b.col));
-    const all = [];
-    for(const p of parts) all.push(...getPathCells(p));
-    return all;
-  }
-  return getPathCells(entry);
-}
-
-function getCorrectCharForCell(entry, key){
-  // найдём позицию key в слове/фразе и вернём правильную букву
-  const keys = getAllKeysForEntryOrGroup(entry);
-
-  // соберём “правильную строку” для слова/фразы
-  let correct = "";
-  if(entry.group){
-    const parts = crossword.entries
-      .filter(e=>e.group===entry.group && e.dir===entry.dir)
-      .sort((a,b)=> (a.row-b.row) || (a.col-b.col));
-    for(const p of parts) correct += normalize(p.answer);
-  } else {
-    correct = normalize(entry.answer);
+  function setHintCell(key, ch){
+    setCellChar(key, ch);
+    hintedKeys.add(key);
+    const td = tdByKey.get(key);
+    if(td) td.classList.add("hint");
   }
 
-  const idx = keys.indexOf(key);
-  if(idx < 0 || idx >= correct.length) return null;
-  return correct[idx];
-}
-
-function revealOneLetter(){
-  if(!activeEntry){
-    clueText.textContent = "Сначала выберите слово";
-    return;
+  // расширяем getPathCells, чтобы удобно получать клетки фразы целиком
+  function getAllKeysForEntryOrGroup(entry){
+    if(!entry) return [];
+    if(entry.group){
+      const parts = crossword.entries
+        .filter(e=>e.group===entry.group && e.dir===entry.dir)
+        .sort((a,b)=> (a.row-b.row) || (a.col-b.col));
+      const all = [];
+      for(const p of parts) all.push(...getPathCells(p));
+      return all;
+    }
+    return getPathCells(entry);
   }
 
-  const keys = getAllKeysForEntryOrGroup(activeEntry);
+  function getCorrectCharForCell(entry, key){
+    // найдём позицию key в слове/фразе и вернём правильную букву
+    const keys = getAllKeysForEntryOrGroup(entry);
 
-  // ищем первую пустую или неправильную клетку, которая не серый gap и существует
-  for(const key of keys){
-    if(!btnByKey.has(key)) continue;          // вдруг пустая/вне маски
-    if(gapSet.has(key)) continue;             // на всякий
-    const correctCh = getCorrectCharForCell(activeEntry, key);
-    if(!correctCh) continue;
+    // соберём “правильную строку” для слова/фразы
+    let correct = "";
+    if(entry.group){
+      const parts = crossword.entries
+        .filter(e=>e.group===entry.group && e.dir===entry.dir)
+        .sort((a,b)=> (a.row-b.row) || (a.col-b.col));
+      for(const p of parts) correct += normalize(p.answer);
+    } else {
+      correct = normalize(entry.answer);
+    }
 
-    const cur = valueByKey.get(key) || "";
-    if(cur !== correctCh){
-      setHintCell(key, correctCh);
-      updateCorrectMarks();
+    const idx = keys.indexOf(key);
+    if(idx < 0 || idx >= correct.length) return null;
+    return correct[idx];
+  }
 
-      // после подсказки двинемся на следующую клетку (чтобы было удобно продолжать)
-      activeKey = key;
-      moveInActive(activeEntry, activeKey, +1);
+  function revealOneLetter(){
+    if(!activeEntry){
+      clueText.textContent = "Сначала выберите слово";
       return;
     }
+
+    const keys = getAllKeysForEntryOrGroup(activeEntry);
+
+    // ищем первую пустую или неправильную клетку, которая не серый gap и существует
+    for(const key of keys){
+      if(!btnByKey.has(key)) continue;
+      if(gapSet.has(key)) continue;
+      const correctCh = getCorrectCharForCell(activeEntry, key);
+      if(!correctCh) continue;
+
+      const cur = valueByKey.get(key) || "";
+      if(cur !== correctCh){
+        setHintCell(key, correctCh);
+        updateCorrectMarks();
+
+        // после подсказки двинемся на следующую клетку (чтобы было удобно продолжать)
+        activeKey = key;
+        moveInActive(activeEntry, activeKey, +1);
+        return;
+      }
+    }
+
+    clueText.textContent = "В этом слове уже всё верно 🙂";
   }
 
-  clueText.textContent = "В этом слове уже всё верно 🙂";
-}
+  document.getElementById("hintBtn").addEventListener("click", revealOneLetter);
 
-document.getElementById("hintBtn").addEventListener("click", revealOneLetter);
   function focusKeyboard(){
     // отмечаем, что клавиатура открыта: фиксируем kbMax, чтобы подсказка не “гуляла”
     focusActive = true;
@@ -732,16 +742,16 @@ document.getElementById("hintBtn").addEventListener("click", revealOneLetter);
     moveInActive(activeEntry, activeKey, +1);
   }
 
-function handleBackspace(){
-  if(!activeEntry || !activeKey) return;
+  function handleBackspace(){
+    if(!activeEntry || !activeKey) return;
 
-  if(hintedKeys.has(activeKey)){
-    // подсказанную букву не стираем, просто шаг назад
-    moveInActive(activeEntry, activeKey, -1);
-    return;
-  }
+    if(hintedKeys.has(activeKey)){
+      // подсказанную букву не стираем, просто шаг назад
+      moveInActive(activeEntry, activeKey, -1);
+      return;
+    }
 
-  const cur = valueByKey.get(activeKey) || "";
+    const cur = valueByKey.get(activeKey) || "";
     if(cur){
       setCellChar(activeKey, "");
       updateCorrectMarks();
@@ -774,19 +784,19 @@ function handleBackspace(){
   });
 
   // очистка
-function clearAll(){
-  for(const key of valueByKey.keys()) setCellChar(key, "");
-  hintedKeys.clear();
-  for(const td of tdByKey.values()) td.classList.remove("hint");
+  function clearAll(){
+    for(const key of valueByKey.keys()) setCellChar(key, "");
+    hintedKeys.clear();
+    for(const td of tdByKey.values()) td.classList.remove("hint");
 
-  updateCorrectMarks();
-  clearActiveHighlight();
-  activeEntry = null;
-  activeKey = null;
-  lastTapKey = null;
-  clueDir.textContent = "—";
-  clueText.textContent = "Нажмите на слово";
-}
+    updateCorrectMarks();
+    clearActiveHighlight();
+    activeEntry = null;
+    activeKey = null;
+    lastTapKey = null;
+    clueDir.textContent = "—";
+    clueText.textContent = "Нажмите на слово";
+  }
 
   document.getElementById("clearBtn").addEventListener("click", clearAll);
 
