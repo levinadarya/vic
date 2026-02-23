@@ -7,13 +7,13 @@
 
   <style>
     :root{
-      --cell: 30px;         /* базовый размер клетки (таблица потом масштабируется) */
+      --cell: 30px;
       --border: 2px;
-      --kb: 0px;            /* высота клавиатуры */
-      --scale: 1;           /* масштаб поля */
-      --clueH: 92px;        /* резерв под подсказку */
-      --vvTop: 0px;         /* компенсация “сдвига” visualViewport на iOS */
-      --vh: 100svh;         /* ВАЖНО: видимая высота (без клавиатуры) */
+      --kb: 0px;
+      --scale: 1;
+      --clueH: 92px;
+      --vvTop: 0px;
+      --vh: 100svh;
     }
 
     html, body{
@@ -26,55 +26,32 @@
       overflow: hidden;
     }
 
-    /* фиксируем экран */
     body{
       position: fixed;
       inset: 0;
       width: 100%;
-      /* главное: компенсируем offsetTop Safari, чтобы НИЧЕГО не ездило */
       transform: translateY(calc(-1 * var(--vvTop)));
       will-change: transform;
     }
 
+    /* ===== компактный layout: только кнопки + поле ===== */
     .screen{
-      height: var(--vh); /* было 100svh */
+      height: var(--vh);
       display: flex;
       flex-direction: column;
-    }
-
-    .top{
-      padding: 14px 12px 10px;
-      max-width: 980px;
-      margin: 0 auto;
-      width: 100%;
-      box-sizing: border-box;
-      flex: 0 0 auto;
-    }
-
-    .panel{
-      border: 1px solid #e6e6e6;
-      border-radius: 16px;
+      gap: 10px;
       padding: 12px;
-      background: #fff;
-    }
-
-    .title{
-      font-size: 26px;
-      line-height: 1.1;
-      margin: 4px 0 6px;
-    }
-
-    .note{
-      font-size: 13px;
-      color: #555;
-      margin: 0 0 10px;
+      box-sizing: border-box;
     }
 
     .actions{
+      max-width: 980px;
+      margin: 0 auto;
+      width: 100%;
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
-      margin-top: 6px;
+      flex: 0 0 auto;
     }
 
     button{
@@ -92,7 +69,7 @@
       display: flex;
       justify-content: center;
       align-items: flex-start;
-      padding: 6px 12px calc(var(--clueH) + 10px) 12px;
+      padding: 0;
       box-sizing: border-box;
       overflow: hidden;
     }
@@ -238,7 +215,6 @@
       color: #111;
     }
 
-    /* один скрытый инпут для набора */
     #kbd{
       position: fixed;
       left: 8px;
@@ -250,22 +226,16 @@
       border: 0;
       padding: 0;
       margin: 0;
-      font-size: 16px; /* важно для iOS (чтобы не зумил) */
+      font-size: 16px;
     }
   </style>
 </head>
 
 <body>
   <div class="screen">
-    <div class="top">
-      <div class="panel">
-        <div class="title">Кроссворд (EN)</div>
-        <div class="note">Серые клетки — пробелы между словами. Тап по клетке выбирает слово, повторный тап переключает направление.</div>
-        <div class="actions">
-          <button id="clearBtn">Очистить</button>
-          <button id="hintBtn">Открыть букву</button>
-        </div>
-      </div>
+    <div class="actions">
+      <button id="clearBtn">Очистить</button>
+      <button id="hintBtn">Открыть букву</button>
     </div>
 
     <div class="gameArea">
@@ -434,7 +404,7 @@
     document.documentElement.style.setProperty("--scale", String(Math.max(0.2, s)));
   }
 
-  // ====== СТАБИЛИЗАЦИЯ iOS: kb + vvTop без “гуляния” + vh (чтобы не пряталось под клавиатуру) ======
+  // ====== СТАБИЛИЗАЦИЯ iOS: kb + vvTop без “гуляния” + vh ======
   let rafPending = false;
   let focusActive = false;
   let kbMax = 0;
@@ -448,14 +418,11 @@
       return;
     }
 
-    // offsetTop Safari (чтобы всё не “прыгало”)
     const top = Math.max(0, Math.round(vv.offsetTop));
     document.documentElement.style.setProperty("--vvTop", `${top}px`);
 
-    // видимая высота (важно для iOS с клавиатурой)
     document.documentElement.style.setProperty("--vh", `${Math.round(vv.height)}px`);
 
-    // высота клавиатуры (может “дрожать” на пару пикселей) — фиксируем максимум на время фокуса
     const bottomGap = Math.max(0, Math.round(window.innerHeight - (vv.height + vv.offsetTop)));
 
     if(focusActive){
@@ -473,7 +440,7 @@
     requestAnimationFrame(()=>{
       rafPending = false;
       updateViewportVars();
-      computeScale(); // важно: при изменении vh пересчитать масштаб
+      computeScale();
     });
   }
   // ====== /стабилизация ======
@@ -612,7 +579,6 @@
     }
   }
 
-  // открытые подсказкой клетки (чтобы их нельзя было стереть)
   const hintedKeys = new Set();
 
   function setHintCell(key, ch){
@@ -622,7 +588,6 @@
     if(td) td.classList.add("hint");
   }
 
-  // расширяем getPathCells, чтобы удобно получать клетки фразы целиком
   function getAllKeysForEntryOrGroup(entry){
     if(!entry) return [];
     if(entry.group){
@@ -637,10 +602,8 @@
   }
 
   function getCorrectCharForCell(entry, key){
-    // найдём позицию key в слове/фразе и вернём правильную букву
     const keys = getAllKeysForEntryOrGroup(entry);
 
-    // соберём “правильную строку” для слова/фразы
     let correct = "";
     if(entry.group){
       const parts = crossword.entries
@@ -664,7 +627,6 @@
 
     const keys = getAllKeysForEntryOrGroup(activeEntry);
 
-    // ищем первую пустую или неправильную клетку, которая не серый gap и существует
     for(const key of keys){
       if(!btnByKey.has(key)) continue;
       if(gapSet.has(key)) continue;
@@ -676,7 +638,6 @@
         setHintCell(key, correctCh);
         updateCorrectMarks();
 
-        // после подсказки двинемся на следующую клетку (чтобы было удобно продолжать)
         activeKey = key;
         moveInActive(activeEntry, activeKey, +1);
         return;
@@ -689,7 +650,6 @@
   document.getElementById("hintBtn").addEventListener("click", revealOneLetter);
 
   function focusKeyboard(){
-    // отмечаем, что клавиатура открыта: фиксируем kbMax, чтобы подсказка не “гуляла”
     focusActive = true;
     kbMax = 0;
     scheduleViewportUpdate();
@@ -697,12 +657,10 @@
     try { kbd.focus({ preventScroll: true }); }
     catch { kbd.focus(); }
 
-    // после появления клавиатуры у iOS часто есть ещё один микрошаг — поймаем
     setTimeout(scheduleViewportUpdate, 50);
     setTimeout(scheduleViewportUpdate, 140);
   }
 
-  // когда клавиатура закрылась — отпускаем “заморозку”
   document.addEventListener("focusout", (e)=>{
     if(e.target === kbd){
       setTimeout(()=>{
@@ -713,7 +671,6 @@
     }
   });
 
-  // обработка тапов по клеткам
   for(const [key, btn] of btnByKey.entries()){
     function onTap(){
       const toggle = (lastTapKey === key);
@@ -730,7 +687,6 @@
     btn.addEventListener("touchend", (e) => { e.preventDefault(); onTap(); }, { passive:false });
   }
 
-  // ввод: один скрытый input
   function handleChar(ch){
     if(!activeEntry || !activeKey) return;
 
@@ -746,7 +702,6 @@
     if(!activeEntry || !activeKey) return;
 
     if(hintedKeys.has(activeKey)){
-      // подсказанную букву не стираем, просто шаг назад
       moveInActive(activeEntry, activeKey, -1);
       return;
     }
@@ -783,7 +738,6 @@
     }
   });
 
-  // очистка
   function clearAll(){
     for(const key of valueByKey.keys()) setCellChar(key, "");
     hintedKeys.clear();
