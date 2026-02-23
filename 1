@@ -84,21 +84,20 @@ body{
 
     /* поле всегда закреплено */
 .gameArea{
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;                 /* было 1 1 auto */
+  min-height: auto;
   display: flex;
   justify-content: center;
   align-items: flex-start;
   padding: 0;
   box-sizing: border-box;
-  overflow: auto;                 /* было visible */
-  -webkit-overflow-scrolling: touch;
+  overflow: visible;              /* или auto, если хочешь внутренний скролл */
 }
 
 .gridWrap{
   max-width: 980px;
   width: 100%;
-  height: auto;
+  height: auto;                   /* важно */
   min-height: 0;
   overflow: visible;
   display: flex;
