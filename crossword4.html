@@ -1,0 +1,750 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Crossword</title>
+
+  <style>
+    :root{
+      --cell: 30px;         /* базовый размер клетки (таблица потом масштабируется) */
+      --border: 2px;
+      --scale: 1;           /* масштаб поля */
+      --vvTop: 0px;         /* компенсация “сдвига” visualViewport на iOS */
+      --vh: 100svh;         /* ВАЖНО: реальная видимая высота (без клавиатуры) */
+    }
+
+    html, body{
+      height: 100%;
+      margin: 0;
+      background: #fff;
+      color: #111;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      -webkit-text-size-adjust: 100%;
+      overflow: hidden;
+    }
+
+    /* фиксируем экран */
+    body{
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      /* компенсируем offsetTop Safari, чтобы НИЧЕГО не ездило */
+      transform: translateY(calc(-1 * var(--vvTop)));
+      will-change: transform;
+    }
+
+    .screen{
+      height: var(--vh); /* <-- ВАЖНО: вместо 100svh */
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px 12px 12px;
+      box-sizing: border-box;
+    }
+
+    /* компактная шапка: только кнопки */
+    .actions{
+      max-width: 980px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      flex: 0 0 auto; /* <-- чтобы не сжималось странно */
+    }
+
+    button{
+      border: 1px solid #ddd;
+      background: #fff;
+      cursor: pointer;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+    }
+
+    /* поле всегда закреплено */
+    .gameArea{
+      flex: 1 1 auto;
+      min-height: 0; /* важно для flex, чтобы не раздувало */
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 0;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+
+    .gridWrap{
+      max-width: 980px;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      position: relative;
+    }
+
+    .gridScaler{
+      transform: scale(var(--scale));
+      transform-origin: top center;
+      will-change: transform;
+    }
+
+    table{
+      border-collapse: collapse;
+      table-layout: fixed;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    td{
+      width: var(--cell);
+      height: var(--cell);
+      min-width: var(--cell);
+      min-height: var(--cell);
+      padding: 0;
+      box-sizing: border-box;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    td.block{
+      border: none !important;
+      background: transparent !important;
+    }
+
+    td.fill{
+      border: var(--border) solid #111;
+      background: #fff;
+    }
+
+    td.gap{
+      border: var(--border) solid #111;
+      background: #d9d9d9;
+    }
+
+    td.active{
+      background: #fff2b3;
+    }
+    td.active.gap{
+      background: #d9d9d9;
+    }
+
+    td.correct{
+      background: #e8f0fe;
+    }
+
+    td.hint{
+      background: #f3f7ff;
+    }
+
+    td.hint .cellBtn{
+      color: #1a73e8;
+      font-weight: 700;
+    }
+
+    .cellBtn{
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      font-size: 16px;
+      line-height: 1;
+      text-transform: uppercase;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      margin: 0;
+      cursor: pointer;
+      color: #111;
+      font-weight: 500;
+      touch-action: manipulation;
+    }
+
+    td.correct .cellBtn{
+      color: #1a73e8;
+      font-weight: 700;
+    }
+
+    /* подсказка статична и всегда видима (теперь экран ужимается по --vh) */
+    .cluebar{
+      max-width: 980px;
+      margin: 0 auto;
+      width: 100%;
+      box-sizing: border-box;
+      flex: 0 0 auto; /* <-- фиксируем высоту блока подсказки */
+    }
+
+    .clueInner{
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #fff;
+    }
+
+    .cluebar-top{
+      display: flex;
+      gap: 8px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .cluechip{
+      display: inline-block;
+      border: 1px solid #ddd;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 12px;
+      color: #222;
+      background: #fff;
+    }
+
+    .cluebar-text{
+      font-size: 14px;
+      line-height: 1.25;
+      color: #111;
+    }
+
+    /* один скрытый инпут для набора */
+    #kbd{
+      position: fixed;
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+      border: 0;
+      padding: 0;
+      margin: 0;
+      font-size: 16px; /* важно для iOS (чтобы не зумил) */
+    }
+  </style>
+</head>
+
+<body>
+  <div class="screen">
+    <div class="actions">
+      <button id="clearBtn">Очистить</button>
+      <button id="hintBtn">Открыть букву</button>
+    </div>
+
+    <div class="gameArea">
+      <div class="gridWrap" id="gridWrap">
+        <div class="gridScaler" id="grid"></div>
+      </div>
+    </div>
+
+    <div class="cluebar" id="clueBar">
+      <div class="clueInner">
+        <div class="cluebar-top">
+          <span id="clueDir" class="cluechip">—</span>
+        </div>
+        <div id="clueText" class="cluebar-text">Нажмите на слово</div>
+      </div>
+    </div>
+  </div>
+
+  <input id="kbd" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+
+<script>
+ 
+const crossword = {
+  width: 23,
+  height: 21,
+  gaps: [
+    { row: 9, col: 14 },
+  ],
+  entries: [
+    { id: 10, dir:"across", row: 3,  col: 9,  answer:"ЛЕЩЕНКО", clue:"Вовчик называет его Левчиком" },
+
+    { id: 61, dir:"down",   row: 3,  col: 14, answer:"КИРЖАЧ", group:"kirzhach_lesik", clue:"Самый лучший клиент Дашеньки" },
+    { id: 62, dir:"down",   row: 10, col: 14, answer:"ЛЕСИК",   group:"kirzhach_lesik", clue:"Самый лучший клиент Дашеньки" },
+
+    { id: 11, dir:"across", row: 5,  col: 12, answer:"МАРЧЕНКО", clue:"Крыса, коллега Влада, которая сливает инфу" },
+
+    { id: 8,  dir:"across", row: 10, col: 8,  answer:"ДЕНЬГУЛЬКОВА", clue:"Самые сильные ножки Ховрино и Измайлово" },
+
+    { id: 13, dir:"down",   row: 9,  col: 17, answer:"ПОЛИГРАФ", clue:"То, что не прошел умный чел, потому что оказался вонючим мусором" },
+    { id: 2, dir:"down", row: 10, col: 19, answer:"АНДРЕЙЧИКОВА", clue:"Человек-долговая яма, с процентами суммарно должна уже отписать свой бизнес, накинув пару мультов каждом" },
+
+    { id: 1,  dir:"down",   row: 12, col: 2,  answer:"ГОБЛИН", clue:"Так обзывается мужик на даче с двумя собаками" },
+
+    { id: 7,  dir:"across", row: 13, col: 1,  answer:"КОНЬ", clue:"Кем хотела быть Саша К." },
+    { id: 12, dir:"across", row: 13, col: 7,  answer:"ЧАСИК", clue:"Тихий" },
+
+    { id: 5,  dir:"down",   row: 10,  col: 10, answer:"НЕВИДИМКА", clue:"Димка из больницы" },
+
+    { id: 15, dir:"across", row: 15, col: 6,  answer:"ЗООФИЛЫ", clue:"Миша и Эля (враги не подходят)" },
+
+    { id: 4,  dir:"across", row: 17, col: 2,  answer:"НАТАШЕНЬКА", clue:"Любовь с работы, картавит, по слухам стала моделью в Китае" },
+
+    { id: 3,  dir:"across", row: 18, col: 13, answer:"ВИТЮЛЕК", clue:"Самые сильные руки Измайлово, потенциальное второе место по сильным ножкам" },
+
+    { id: 9,  dir:"across", row: 20, col: 13, answer:"КОЛЕСОВА", clue:"Современный террорист-смертник" }
+  ]
+};
+
+  const W = crossword.width;
+  const H = crossword.height;
+
+  const kbd = document.getElementById("kbd");
+  const clueDir = document.getElementById("clueDir");
+  const clueText = document.getElementById("clueText");
+
+  function normalize(s){
+    return (s||"")
+      .toString()
+      .trim()
+      .toUpperCase()
+      .replace(/Ё/g, "Е");
+  }
+
+  const gapSet = new Set((crossword.gaps||[]).map(g=>`${g.row-1},${g.col-1}`));
+  const mask = Array.from({length:H}, ()=> Array.from({length:W}, ()=> false));
+
+  function assertInBounds(r,c,label){
+    if(r<0||r>=H||c<0||c>=W) throw new Error(`${label} выходит за границы ${W}x${H}`);
+  }
+
+  for(const key of gapSet){
+    const [r,c]=key.split(",").map(Number);
+    assertInBounds(r,c,"gap");
+    mask[r][c]=true;
+  }
+
+  function placeWord(e){
+    const w = normalize(e.answer);
+    for(let i=0;i<w.length;i++){
+      const r = (e.row-1) + (e.dir==="down"? i : 0);
+      const c = (e.col-1) + (e.dir==="across"? i : 0);
+      assertInBounds(r,c,`Слово "${e.answer}"`);
+      if(gapSet.has(`${r},${c}`)) throw new Error(`Слово "${e.answer}" попало в серую клетку`);
+      mask[r][c]=true;
+    }
+  }
+  crossword.entries.forEach(placeWord);
+
+  // кадрирование
+  let minR=H-1, maxR=0, minC=W-1, maxC=0;
+  for(let r=0;r<H;r++){
+    for(let c=0;c<W;c++){
+      if(mask[r][c]){
+        minR = Math.min(minR, r);
+        maxR = Math.max(maxR, r);
+        minC = Math.min(minC, c);
+        maxC = Math.max(maxC, c);
+      }
+    }
+  }
+  const PAD = 0;
+  minR = Math.max(0, minR-PAD);
+  minC = Math.max(0, minC-PAD);
+  maxR = Math.min(H-1, maxR+PAD);
+  maxC = Math.min(W-1, maxC+PAD);
+
+  const colsVisible = (maxC - minC + 1);
+  const rowsVisible = (maxR - minR + 1);
+
+  // состояние букв
+  const valueByKey = new Map();
+  const tdByKey = new Map();
+  const btnByKey = new Map();
+  const cellToEntries = new Map();
+
+  function addCellEntry(r,c,entry){
+    const key = `${r},${c}`;
+    if(!cellToEntries.has(key)) cellToEntries.set(key, []);
+    cellToEntries.get(key).push(entry);
+  }
+
+  crossword.entries.forEach(e=>{
+    const w = normalize(e.answer);
+    for(let i=0;i<w.length;i++){
+      const r = (e.row-1) + (e.dir==="down"? i : 0);
+      const c = (e.col-1) + (e.dir==="across"? i : 0);
+      addCellEntry(r,c,e);
+    }
+  });
+
+  // render
+  const gridEl = document.getElementById("grid");
+  const table = document.createElement("table");
+
+  for(let r=minR;r<=maxR;r++){
+    const tr=document.createElement("tr");
+    for(let c=minC;c<=maxC;c++){
+      const td=document.createElement("td");
+      const key = `${r},${c}`;
+
+      if(!mask[r][c]){
+        td.className="block";
+      } else if(gapSet.has(key)){
+        td.className="gap";
+      } else {
+        td.className="fill";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "cellBtn";
+        btn.textContent = "";
+        td.appendChild(btn);
+        btnByKey.set(key, btn);
+        valueByKey.set(key, "");
+      }
+
+      tdByKey.set(key, td);
+      tr.appendChild(td);
+    }
+    table.appendChild(tr);
+  }
+
+  gridEl.appendChild(table);
+
+  // масштаб поля
+  function computeScale(){
+    const wrap = document.getElementById("gridWrap");
+    const availW = wrap.clientWidth;
+    const availH = wrap.clientHeight;
+
+    const cell = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell')) || 30;
+    const border = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--border')) || 2;
+
+    const gridW = colsVisible * cell + colsVisible * border;
+    const gridH = rowsVisible * cell + rowsVisible * border;
+
+    const s = Math.min(availW / gridW, availH / gridH, 1);
+    document.documentElement.style.setProperty("--scale", String(Math.max(0.2, s)));
+  }
+
+  // ====== СТАБИЛИЗАЦИЯ iOS: vvTop + vh (чтобы подсказка НЕ пряталась под клавиатуру) ======
+  let rafPending = false;
+
+  function updateViewportVars(){
+    const vv = window.visualViewport;
+    if(!vv){
+      document.documentElement.style.setProperty("--vvTop","0px");
+      document.documentElement.style.setProperty("--vh","100svh");
+      return;
+    }
+    const top = Math.max(0, Math.round(vv.offsetTop));
+    document.documentElement.style.setProperty("--vvTop", `${top}px`);
+    document.documentElement.style.setProperty("--vh", `${Math.round(vv.height)}px`);
+  }
+
+  function scheduleViewportUpdate(){
+    if(rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(()=>{
+      rafPending = false;
+      updateViewportVars();
+      computeScale(); // важно: при изменении vh пересчитать масштаб
+    });
+  }
+  // ====== /стабилизация ======
+
+  computeScale();
+  updateViewportVars();
+
+  window.addEventListener("resize", scheduleViewportUpdate);
+  window.addEventListener("orientationchange", () => setTimeout(scheduleViewportUpdate, 150));
+
+  if(window.visualViewport){
+    window.visualViewport.addEventListener("resize", scheduleViewportUpdate);
+    window.visualViewport.addEventListener("scroll", scheduleViewportUpdate);
+  }
+
+  // активное слово
+  let activeEntry = null;
+  let activeKey = null;
+  let lastTapKey = null;
+
+  function clearActiveHighlight(){
+    for(const td of tdByKey.values()) td.classList.remove("active");
+  }
+
+  function highlightEntry(entry){
+    const w = normalize(entry.answer);
+    for(let i=0;i<w.length;i++){
+      const r = (entry.row-1) + (entry.dir==="down"? i : 0);
+      const c = (entry.col-1) + (entry.dir==="across"? i : 0);
+      const td = tdByKey.get(`${r},${c}`);
+      if(td) td.classList.add("active");
+    }
+  }
+
+  function highlightGroup(groupId){
+    clearActiveHighlight();
+    for(const e of crossword.entries){
+      if(e.group === groupId) highlightEntry(e);
+    }
+  }
+
+  function showClue(entry){
+    clueDir.textContent = entry.dir === "across" ? "По горизонтали" : "По вертикали";
+    clueText.textContent = entry.clue;
+
+    if(entry.group) highlightGroup(entry.group);
+    else { clearActiveHighlight(); highlightEntry(entry); }
+
+    activeEntry = entry;
+  }
+
+  function pickEntryForCellKey(key, forceToggle=false){
+    const list = cellToEntries.get(key) || [];
+    if(list.length === 0) return null;
+
+    if(forceToggle && activeEntry){
+      const idx = list.findIndex(x => x === activeEntry);
+      if(idx >= 0) return list[(idx + 1) % list.length];
+      return list[0];
+    }
+
+    const across = list.find(x => x.dir === "across");
+    return across || list[0];
+  }
+
+  function getPathCells(entry){
+    const keys = [];
+    const w = normalize(entry.answer);
+    for(let i=0;i<w.length;i++){
+      const r = (entry.row-1) + (entry.dir==="down"? i : 0);
+      const c = (entry.col-1) + (entry.dir==="across"? i : 0);
+      keys.push(`${r},${c}`);
+    }
+    return keys;
+  }
+
+  function moveInActive(entry, currentKey, delta){
+    if(!entry) return;
+
+    if(entry.group){
+      const parts = crossword.entries
+        .filter(e=>e.group===entry.group && e.dir===entry.dir)
+        .sort((a,b)=> (a.row-b.row) || (a.col-b.col));
+
+      const allKeys = [];
+      for(const p of parts) allKeys.push(...getPathCells(p));
+
+      const i = allKeys.indexOf(currentKey);
+      const next = allKeys[i + delta];
+      if(next && btnByKey.get(next)){
+        activeKey = next;
+        return;
+      }
+      return;
+    }
+
+    const keys = getPathCells(entry);
+    const idx = keys.indexOf(currentKey);
+    const next = keys[idx + delta];
+    if(next && btnByKey.get(next)){
+      activeKey = next;
+    }
+  }
+
+  function setCellChar(key, ch){
+    if(!btnByKey.has(key)) return;
+    valueByKey.set(key, ch);
+    btnByKey.get(key).textContent = ch;
+  }
+
+  function updateCorrectMarks(){
+    for(const td of tdByKey.values()) td.classList.remove("correct");
+
+    for(const e of crossword.entries){
+      const w = normalize(e.answer);
+      let ok = true;
+
+      for(let i=0;i<w.length;i++){
+        const r = (e.row-1) + (e.dir==="down"? i : 0);
+        const c = (e.col-1) + (e.dir==="across"? i : 0);
+        const key = `${r},${c}`;
+        if(!btnByKey.has(key)) continue;
+        if((valueByKey.get(key) || "") !== w[i]) ok = false;
+      }
+
+      if(ok){
+        for(let i=0;i<w.length;i++){
+          const r = (e.row-1) + (e.dir==="down"? i : 0);
+          const c = (e.col-1) + (e.dir==="across"? i : 0);
+          const td = tdByKey.get(`${r},${c}`);
+          if(td) td.classList.add("correct");
+        }
+      }
+    }
+  }
+
+  // открытые подсказкой клетки
+  const hintedKeys = new Set();
+
+  function setHintCell(key, ch){
+    setCellChar(key, ch);
+    hintedKeys.add(key);
+    const td = tdByKey.get(key);
+    if(td) td.classList.add("hint");
+  }
+
+  function getAllKeysForEntryOrGroup(entry){
+    if(!entry) return [];
+    if(entry.group){
+      const parts = crossword.entries
+        .filter(e=>e.group===entry.group && e.dir===entry.dir)
+        .sort((a,b)=> (a.row-b.row) || (a.col-b.col));
+      const all = [];
+      for(const p of parts) all.push(...getPathCells(p));
+      return all;
+    }
+    return getPathCells(entry);
+  }
+
+  function getCorrectCharForCell(entry, key){
+    const keys = getAllKeysForEntryOrGroup(entry);
+
+    let correct = "";
+    if(entry.group){
+      const parts = crossword.entries
+        .filter(e=>e.group===entry.group && e.dir===entry.dir)
+        .sort((a,b)=> (a.row-b.row) || (a.col-b.col));
+      for(const p of parts) correct += normalize(p.answer);
+    } else {
+      correct = normalize(entry.answer);
+    }
+
+    const idx = keys.indexOf(key);
+    if(idx < 0 || idx >= correct.length) return null;
+    return correct[idx];
+  }
+
+  function revealOneLetter(){
+    if(!activeEntry){
+      clueText.textContent = "Сначала выберите слово";
+      return;
+    }
+
+    const keys = getAllKeysForEntryOrGroup(activeEntry);
+
+    for(const key of keys){
+      if(!btnByKey.has(key)) continue;
+      if(gapSet.has(key)) continue;
+      const correctCh = getCorrectCharForCell(activeEntry, key);
+      if(!correctCh) continue;
+
+      const cur = valueByKey.get(key) || "";
+      if(cur !== correctCh){
+        setHintCell(key, correctCh);
+        updateCorrectMarks();
+
+        activeKey = key;
+        moveInActive(activeEntry, activeKey, +1);
+        return;
+      }
+    }
+
+    clueText.textContent = "В этом слове уже всё верно 🙂";
+  }
+
+  document.getElementById("hintBtn").addEventListener("click", revealOneLetter);
+
+  function focusKeyboard(){
+    scheduleViewportUpdate();
+    try { kbd.focus({ preventScroll: true }); }
+    catch { kbd.focus(); }
+    setTimeout(scheduleViewportUpdate, 50);
+    setTimeout(scheduleViewportUpdate, 140);
+  }
+
+  // обработка тапов по клеткам
+  for(const [key, btn] of btnByKey.entries()){
+    function onTap(){
+      const toggle = (lastTapKey === key);
+      lastTapKey = key;
+
+      const entry = pickEntryForCellKey(key, toggle);
+      if(entry) showClue(entry);
+
+      activeKey = key;
+      focusKeyboard();
+    }
+
+    btn.addEventListener("click", onTap);
+    btn.addEventListener("touchend", (e) => { e.preventDefault(); onTap(); }, { passive:false });
+  }
+
+  // ввод: один скрытый input
+  function handleChar(ch){
+    if(!activeEntry || !activeKey) return;
+
+    const up = normalize(ch).slice(0,1);
+    if(!up) return;
+
+    setCellChar(activeKey, up);
+    updateCorrectMarks();
+    moveInActive(activeEntry, activeKey, +1);
+  }
+
+  function handleBackspace(){
+    if(!activeEntry || !activeKey) return;
+
+    if(hintedKeys.has(activeKey)){
+      moveInActive(activeEntry, activeKey, -1);
+      return;
+    }
+
+    const cur = valueByKey.get(activeKey) || "";
+    if(cur){
+      setCellChar(activeKey, "");
+      updateCorrectMarks();
+      return;
+    }
+    moveInActive(activeEntry, activeKey, -1);
+    if(activeKey){
+      setCellChar(activeKey, "");
+      updateCorrectMarks();
+    }
+  }
+
+  kbd.addEventListener("input", () => {
+    const v = kbd.value || "";
+    if(v.length){
+      handleChar(v[v.length-1]);
+      kbd.value = "";
+    }
+  });
+
+  kbd.addEventListener("keydown", (e) => {
+    if(e.key === "Backspace"){
+      e.preventDefault();
+      handleBackspace();
+      kbd.value = "";
+    }
+    if(e.key && e.key.length === 1){
+      setTimeout(() => { kbd.value = ""; }, 0);
+    }
+  });
+
+  // очистка
+  function clearAll(){
+    for(const key of valueByKey.keys()) setCellChar(key, "");
+    hintedKeys.clear();
+    for(const td of tdByKey.values()) td.classList.remove("hint");
+
+    updateCorrectMarks();
+    clearActiveHighlight();
+    activeEntry = null;
+    activeKey = null;
+    lastTapKey = null;
+    clueDir.textContent = "—";
+    clueText.textContent = "Нажмите на слово";
+  }
+
+  document.getElementById("clearBtn").addEventListener("click", clearAll);
+
+  updateCorrectMarks();
+</script>
+</body>
+</html>
