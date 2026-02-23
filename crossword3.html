@@ -397,7 +397,10 @@
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "cellBtn";
-        btn.textContent = "";
+        btn.textContent = `${r+1},${c+1}`;   // временно покажет row,col прямо в клетке
+btn.style.fontSize = "8px";         // чтобы влезало
+btn.style.lineHeight = "1";
+btn.style.opacity = "0.6";
         td.appendChild(btn);
         btnByKey.set(key, btn);
         valueByKey.set(key, "");
