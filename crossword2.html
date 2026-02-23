@@ -253,15 +253,17 @@
   <input id="kbd" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" />
 
 <script>
-  const crossword = {
+ const crossword = {
   width: 23,
   height: 20,
-  gaps: [],
+  gaps: [
+    { row: 7, col: 14 },
+  ],
   entries: [
     { id: 10, dir:"across", row: 1,  col: 9,  answer:"ЛЕЩЕНКО", clue:"Вовчик называет его Левчиком" },
 
     { id: 61, dir:"down",   row: 1,  col: 14, answer:"КИРЖАЧ", group:"kirzhach_lesik", clue:"Самый лучший клиент Дашеньки" },
-    { id: 62, dir:"down",   row: 7,  col: 14, answer:"ЛЕСИК",   group:"kirzhach_lesik", clue:"Самый лучший клиент Дашеньки" },
+    { id: 62, dir:"down",   row: 8,  col: 14, answer:"ЛЕСИК",   group:"kirzhach_lesik", clue:"Самый лучший клиент Дашеньки" },
 
     { id: 11, dir:"across", row: 3,  col: 12, answer:"МАРЧЕНКО", clue:"Крыса, коллега Влада, которая сливает инфу" },
 
