@@ -84,32 +84,28 @@ body{
 
     /* поле всегда закреплено */
 .gameArea{
-  flex: 0 0 auto;                 /* было 1 1 auto */
+  flex: 0 0 auto;
   min-height: auto;
   display: flex;
   justify-content: center;
   align-items: flex-start;
   padding: 0;
   box-sizing: border-box;
-  overflow: visible;              /* или auto, если хочешь внутренний скролл */
+  overflow-x: auto;              /* было visible */
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
 }
 
 .gridWrap{
-  max-width: 980px;
   width: 100%;
-  height: auto;
-  min-height: 0;
-  overflow: visible;
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  position: relative;
-  flex: 0 0 auto;
 }
 
 .gridScaler{
   transform: scale(var(--scale));
-  transform-origin: top center;
+  transform-origin: top left;   /* <-- было top center */
   will-change: transform;
   display: block;
   overflow: visible;
@@ -428,28 +424,31 @@ const crossword = {
   gridEl.appendChild(table);
 
   // масштаб поля
-<script id="5v6dfg">
 function computeScale(){
   const wrap = document.getElementById("gridWrap");
-  const scaler = document.getElementById("grid"); // это .gridScaler
+  const scaler = document.getElementById("grid");
+  const table = scaler.querySelector("table");
+  if(!wrap || !scaler || !table) return;
 
-  const availW = wrap.clientWidth;
+  // Сброс перед измерением
+  scaler.style.width = "auto";
+  scaler.style.height = "auto";
+  document.documentElement.style.setProperty("--scale", "1");
 
-  const cell = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell')) || 30;
-  const border = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--border')) || 2;
+  // Фактический размер таблицы (без scale)
+  const tableW = table.offsetWidth;
+  const tableH = table.offsetHeight;
 
-  const gridW = colsVisible * cell + colsVisible * border;
-  const gridH = rowsVisible * cell + rowsVisible * border;
+  const availW = (wrap.clientWidth || window.innerWidth || 320) - 4;
+  const s = Math.min(availW / tableW, 1);
+  const finalScale = Math.max(0.2, s);
 
-  // Масштабируем только по ширине, чтобы не появлялся "ложный" высокий блок
-  const s = Math.min(availW / gridW, 1);
-  document.documentElement.style.setProperty("--scale", String(Math.max(0.2, s)));
+  document.documentElement.style.setProperty("--scale", String(finalScale));
 
-  // ВАЖНО: компенсируем transform-scale в потоке документа
-  scaler.style.width = (gridW * s) + "px";
-  scaler.style.height = (gridH * s) + "px";
+  // Компенсация transform, чтобы не было "пустого фантомного блока"
+  scaler.style.width = (tableW * finalScale) + "px";
+  scaler.style.height = (tableH * finalScale) + "px";
 }
-</script>
 
   // ====== СТАБИЛИЗАЦИЯ iOS: vvTop + vh (чтобы подсказка НЕ пряталась под клавиатуру) ======
   let rafPending = false;
