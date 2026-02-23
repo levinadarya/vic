@@ -254,28 +254,38 @@
 
 <script>
   const crossword = {
-    width: 23,
-    height: 20,
-    gaps: [
-      { row: 9, col: 13 },
-    ],
-    entries: [
-      { id: 10, dir:"across", row: 1, col: 1, answer:"ЛЕЩЕНКО", clue:"Вовчик называет его Левчиком" },
-      { id: 7, dir:"down", row: 1, col: 6, answer:"КОНЬ", clue:"Кем хотела быть Саша К." },
-      { id: 5, dir:"across", row: 3, col: 6, answer:"НЕВИДИМКА", clue:"Димка из больницы" },
-      { id: 3, dir:"down", row: 3, col: 8, answer:"ВИТЮЛЕК", clue:"Самые сильные руки Измайлово, потенциальное второе место по сильным ножкам" },
-      { id: 1, dir:"across", row: 7, col: 5, answer:"ГОБЛИН", clue:"Так обзывается мужик на даче с двумя собаками" },
-      { id: 2, dir:"down", row: 6, col: 10, answer:"АНДРЕЙЧИКОВА", clue:"Человек-долговая яма, с процентами суммарно должна уже отписать свой бизнес, накинув пару мультов каждом" },
-      { id: 4, dir:"across", row: 14, col: 2, answer:"НАТАШЕНЬКА", clue:"Любовь с работы, картавит, по слухам стала моделью в Китае" },
-      { id: 8, dir:"across", row: 15, col: 1, answer:"ДЕНЬГУЛЬКОВА", clue:"Самые сильные ножки Ховрино и Измайлово" },
-      { id: 61, dir:"down", row: 3, col: 13, answer:"КИРЖАЧ", group:"kirzhach_lesik", clue:"Самый лучший клиент Дашеньки" },
-      { id: 62, dir:"down", row: 10, col: 13, answer:"ЛЕСИК", group:"kirzhach_lesik", clue:"Самый лучший клиент Дашеньки" },
-      { id: 12, dir:"across", row: 8, col: 13, answer:"ЧАСИК", clue:"Тихий" },
-      { id: 9, dir:"across", row: 14, col: 13, answer:"КОЛЕСОВА", clue:"Современный террорист-смертник" },
-      { id: 13, dir:"down", row: 12, col: 15, answer:"ПОЛИГРАФ", clue:"То, что не прошел умный чел, потому что оказался вонючим мусором" },
-      { id: 11, dir:"down", row: 13, col: 20, answer:"МАРЧЕНКО", clue:"Крыса, коллега Влада, которая сливает инфу" },
-    ]
-  };
+  width: 23,
+  height: 20,
+  gaps: [],
+  entries: [
+    { id: 10, dir:"across", row: 1,  col: 9,  answer:"ЛЕЩЕНКО", clue:"Вовчик называет его Левчиком" },
+
+    { id: 61, dir:"down",   row: 1,  col: 14, answer:"КИРЖАЧ", group:"kirzhach_lesik", clue:"Самый лучший клиент Дашеньки" },
+    { id: 62, dir:"down",   row: 7,  col: 14, answer:"ЛЕСИК",   group:"kirzhach_lesik", clue:"Самый лучший клиент Дашеньки" },
+
+    { id: 11, dir:"across", row: 3,  col: 12, answer:"МАРЧЕНКО", clue:"Крыса, коллега Влада, которая сливает инфу" },
+
+    { id: 8,  dir:"across", row: 7,  col: 8,  answer:"ДЕНЬГУЛЬКОВА", clue:"Самые сильные ножки Ховрино и Измайлово" },
+
+    { id: 13, dir:"down",   row: 6,  col: 19, answer:"ПОЛИГРАФ", clue:"То, что не прошел умный чел, потому что оказался вонючим мусором" },
+    { id: 2,  dir:"down",   row: 7,  col: 22, answer:"АНДРЕЙЧИКОВА", clue:"Человек-долговая яма, с процентами суммарно должна уже отписать свой бизнес, накинув пару мультов каждом" },
+
+    { id: 1,  dir:"down",   row: 9,  col: 2,  answer:"ГОБЛИН", clue:"Так обзывается мужик на даче с двумя собаками" },
+
+    { id: 7,  dir:"across", row: 10, col: 1,  answer:"КОНЬ", clue:"Кем хотела быть Саша К." },
+    { id: 12, dir:"across", row: 10, col: 7,  answer:"ЧАСИК", clue:"Тихий" },
+
+    { id: 5,  dir:"down",   row: 7,  col: 10, answer:"НЕВИДИМКА", clue:"Димка из больницы" },
+
+    { id: 15, dir:"across", row: 12, col: 6,  answer:"ЗООФИЛЫ", clue:"Миша и Эля (враги не подходят)" },
+
+    { id: 4,  dir:"across", row: 14, col: 2,  answer:"НАТАШЕНЬКА", clue:"Любовь с работы, картавит, по слухам стала моделью в Китае" },
+
+    { id: 3,  dir:"across", row: 15, col: 14, answer:"ВИТЮЛЕК", clue:"Самые сильные руки Измайлово, потенциальное второе место по сильным ножкам" },
+
+    { id: 9,  dir:"across", row: 17, col: 14, answer:"КОЛЕСОВА", clue:"Современный террорист-смертник" }
+  ]
+};
 
   const W = crossword.width;
   const H = crossword.height;
