@@ -97,20 +97,23 @@ body{
 .gridWrap{
   max-width: 980px;
   width: 100%;
-  height: auto;                   /* важно */
+  height: auto;
   min-height: 0;
   overflow: visible;
   display: flex;
   justify-content: center;
   align-items: flex-start;
   position: relative;
+  flex: 0 0 auto;
 }
 
-    .gridScaler{
-      transform: scale(var(--scale));
-      transform-origin: top center;
-      will-change: transform;
-    }
+.gridScaler{
+  transform: scale(var(--scale));
+  transform-origin: top center;
+  will-change: transform;
+  display: block;
+  overflow: visible;
+}
 
     table{
       border-collapse: collapse;
@@ -425,20 +428,28 @@ const crossword = {
   gridEl.appendChild(table);
 
   // масштаб поля
-  function computeScale(){
-    const wrap = document.getElementById("gridWrap");
-    const availW = wrap.clientWidth;
-    const availH = wrap.clientHeight;
+<script id="5v6dfg">
+function computeScale(){
+  const wrap = document.getElementById("gridWrap");
+  const scaler = document.getElementById("grid"); // это .gridScaler
 
-    const cell = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell')) || 30;
-    const border = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--border')) || 2;
+  const availW = wrap.clientWidth;
 
-    const gridW = colsVisible * cell + colsVisible * border;
-    const gridH = rowsVisible * cell + rowsVisible * border;
+  const cell = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell')) || 30;
+  const border = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--border')) || 2;
 
-    const s = Math.min(availW / gridW, availH / gridH, 1);
-    document.documentElement.style.setProperty("--scale", String(Math.max(0.2, s)));
-  }
+  const gridW = colsVisible * cell + colsVisible * border;
+  const gridH = rowsVisible * cell + rowsVisible * border;
+
+  // Масштабируем только по ширине, чтобы не появлялся "ложный" высокий блок
+  const s = Math.min(availW / gridW, 1);
+  document.documentElement.style.setProperty("--scale", String(Math.max(0.2, s)));
+
+  // ВАЖНО: компенсируем transform-scale в потоке документа
+  scaler.style.width = (gridW * s) + "px";
+  scaler.style.height = (gridH * s) + "px";
+}
+</script>
 
   // ====== СТАБИЛИЗАЦИЯ iOS: vvTop + vh (чтобы подсказка НЕ пряталась под клавиатуру) ======
   let rafPending = false;
