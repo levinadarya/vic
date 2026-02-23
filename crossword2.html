@@ -402,6 +402,20 @@ const crossword = {
     }
     table.appendChild(tr);
   }
+  // DEBUG: показывать координаты в пустых клетках
+for (let r = minR; r <= maxR; r++) {
+  for (let c = minC; c <= maxC; c++) {
+    const key = `${r},${c}`;
+    const td = tdByKey.get(key);
+    const btn = btnByKey.get(key);
+    if (!td || !btn || gapSet.has(key)) continue;
+    if (!btn.textContent) {
+      btn.textContent = `${r+1}.${c+1}`;
+      btn.style.fontSize = "8px";
+      btn.style.lineHeight = "1";
+    }
+  }
+}
   gridEl.appendChild(table);
 
   // масштаб поля
